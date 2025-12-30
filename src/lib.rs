@@ -139,6 +139,10 @@ pub fn create_router(state: AppState) -> Router {
             post(handlers::web::delete_tag_submit),
         )
         .route(
+            "/boards/{board_id}/delete",
+            post(handlers::web::delete_board_submit),
+        )
+        .route(
             "/cards/{card_id}/tags/add",
             post(handlers::web::add_tag_to_card_submit),
         )

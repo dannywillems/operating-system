@@ -83,8 +83,12 @@
             </div>
             <div class="card-body">
                 <p class="text-muted">Deleting a board will remove all columns, cards, and tags. This action cannot be undone.</p>
+                {% if board.role == "owner" %}
+                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteBoardModal">Delete Board</button>
+                {% else %}
                 <button type="button" class="btn btn-danger" disabled>Delete Board</button>
-                <small class="d-block text-muted mt-2">Board deletion is available via the API only.</small>
+                <small class="d-block text-muted mt-2">Only the board owner can delete this board.</small>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -92,5 +96,27 @@
 
 <div class="mt-4">
     <a href="/boards/{{ board.id }}" class="btn btn-outline-secondary">Back to Board</a>
+</div>
+
+<!-- Delete Board Confirmation Modal -->
+<div class="modal fade" id="deleteBoardModal" tabindex="-1" aria-labelledby="deleteBoardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteBoardModalLabel">Delete Board</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong>{{ board.name }}</strong>?</p>
+                <p class="text-danger">This will permanently delete all columns, cards, and tags in this board. This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="post" action="/boards/{{ board.id }}/delete" class="d-inline">
+                    <button type="submit" class="btn btn-danger">Delete Board</button>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}

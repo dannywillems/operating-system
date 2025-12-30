@@ -653,6 +653,26 @@ pub async fn delete_column_submit(
     Ok(Redirect::to(&format!("/boards/{}", board_id)).into_response())
 }
 
+pub async fn delete_board_submit(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path(board_id): Path<Uuid>,
+) -> Result<Response> {
+    let role = state
+        .boards
+        .get_user_role(board_id, auth.user.id)
+        .await?
+        .ok_or(AppError::Forbidden)?;
+
+    if !role.can_delete() {
+        return Err(AppError::Forbidden);
+    }
+
+    state.boards.delete(board_id).await?;
+
+    Ok(Redirect::to("/boards").into_response())
+}
+
 pub async fn add_tag_to_card_submit(
     State(state): State<AppState>,
     auth: AuthUser,
