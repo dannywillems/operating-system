@@ -2,6 +2,7 @@ use axum::{
     extract::{Path, State},
     Json,
 };
+use tracing::{debug, info, instrument, warn};
 use uuid::Uuid;
 
 use crate::auth::AuthUser;
@@ -52,7 +53,13 @@ async fn build_system_prompt(
 7. delete_column - Delete a column (and all its cards)
    {"action": "delete_column", "params": {"column": "column name"}, "message": "Deleted column..."}
 
-8. no_action - Just respond without taking action
+8. delete_tag - Delete a tag from the board
+   {"action": "delete_tag", "params": {"tag": "tag name"}, "message": "Deleted tag..."}
+
+9. delete_card - Delete a card
+   {"action": "delete_card", "params": {"card": "card title"}, "message": "Deleted card..."}
+
+10. no_action - Just respond without taking action
    {"action": "no_action", "params": {}, "message": "Your response here..."}
 "##;
 
@@ -447,6 +454,95 @@ async fn execute_action(
             }
         }
 
+        "delete_tag" | "deletetag" => {
+            // Accept alternative param names
+            let tag_name = action.params["tag"]
+                .as_str()
+                .or_else(|| action.params["tag_name"].as_str())
+                .or_else(|| action.params["name"].as_str())
+                .unwrap_or("");
+
+            if tag_name.is_empty() {
+                return Ok(ActionTaken {
+                    action: "delete_tag".to_string(),
+                    description: format!("Missing tag name. Received params: {:?}", action.params),
+                    success: false,
+                });
+            }
+
+            // Find tag by name
+            let tags = state.tags.list_by_board(board_id).await?;
+            let tag = tags
+                .iter()
+                .find(|t| t.name.to_lowercase() == tag_name.to_lowercase());
+
+            if let Some(t) = tag {
+                state.tags.delete(t.id).await?;
+                Ok(ActionTaken {
+                    action: "delete_tag".to_string(),
+                    description: format!("Deleted tag '{}'", t.name),
+                    success: true,
+                })
+            } else {
+                Ok(ActionTaken {
+                    action: "delete_tag".to_string(),
+                    description: format!("Tag '{}' not found", tag_name),
+                    success: false,
+                })
+            }
+        }
+
+        "delete_card" | "deletecard" => {
+            // Accept alternative param names
+            let card_title = action.params["card"]
+                .as_str()
+                .or_else(|| action.params["card_title"].as_str())
+                .or_else(|| action.params["title"].as_str())
+                .or_else(|| action.params["name"].as_str())
+                .unwrap_or("");
+
+            if card_title.is_empty() {
+                return Ok(ActionTaken {
+                    action: "delete_card".to_string(),
+                    description: format!(
+                        "Missing card title. Received params: {:?}",
+                        action.params
+                    ),
+                    success: false,
+                });
+            }
+
+            // Find card by title
+            let columns = state.columns.list_by_board(board_id).await?;
+            let mut found_card = None;
+
+            for col in &columns {
+                let cards = state.cards.list_by_column(col.id).await?;
+                if let Some(card) = cards
+                    .iter()
+                    .find(|c| c.title.to_lowercase() == card_title.to_lowercase())
+                {
+                    found_card = Some(card.clone());
+                    break;
+                }
+            }
+
+            if let Some(card) = found_card {
+                state.cards.delete(card.id).await?;
+                Ok(ActionTaken {
+                    action: "delete_card".to_string(),
+                    description: format!("Deleted card '{}'", card.title),
+                    success: true,
+                })
+            } else {
+                Ok(ActionTaken {
+                    action: "delete_card".to_string(),
+                    description: format!("Card '{}' not found", card_title),
+                    success: false,
+                })
+            }
+        }
+
         "list_cards" | "listcards" | "list_tags" | "listtags" | "no_action" | "noaction" => {
             Ok(ActionTaken {
                 action: action.action.clone(),
@@ -464,12 +560,15 @@ async fn execute_action(
 }
 
 /// Send a chat message and get a response
+#[instrument(skip(state, auth, input), fields(user_id = %auth.user.id, board_id = %board_id))]
 pub async fn send_message(
     State(state): State<AppState>,
     auth: AuthUser,
     Path(board_id): Path<Uuid>,
     Json(input): Json<SendChatRequest>,
 ) -> Result<Json<ChatResponse>> {
+    info!(message = %input.message, "Chat message received");
+
     // Verify user has access to board
     let role = state
         .boards
@@ -477,12 +576,16 @@ pub async fn send_message(
         .await?
         .ok_or(AppError::Forbidden)?;
 
+    debug!(role = ?role, "User role verified");
+
     // Store input message before moving
     let user_message = input.message.clone();
 
     // Build system prompt with board context and user's custom context
     let system_prompt =
         build_system_prompt(&state, board_id, auth.user.llm_context.as_deref()).await?;
+
+    debug!("System prompt built successfully");
 
     // Create messages for Ollama
     let messages = vec![
@@ -497,16 +600,33 @@ pub async fn send_message(
     ];
 
     // Send to Ollama
+    info!("Sending request to LLM");
     let llm_response = state.ollama.chat(messages).await?;
+    debug!(
+        response_length = llm_response.len(),
+        "LLM response received"
+    );
 
     // Parse LLM response for actions (now handles multiple actions)
     let mut actions_taken = Vec::new();
     let parsed_actions = parse_llm_response(&llm_response);
 
+    if parsed_actions.is_empty() {
+        debug!("No actions parsed from LLM response");
+    } else {
+        info!(
+            action_count = parsed_actions.len(),
+            "Parsed actions from LLM response"
+        );
+        for action in &parsed_actions {
+            debug!(action = %action.action, params = ?action.params, "Parsed action");
+        }
+    }
+
     // Execute all parsed actions
     for action in &parsed_actions {
         // Skip no-op actions
-        let dominated_actions = [
+        let readonly_actions = [
             "no_action",
             "noaction",
             "list_cards",
@@ -514,14 +634,33 @@ pub async fn send_message(
             "list_tags",
             "listtags",
         ];
-        if dominated_actions.contains(&action.action.as_str()) {
+        if readonly_actions.contains(&action.action.as_str()) {
+            debug!(action = %action.action, "Skipping read-only action");
             continue;
         }
 
         // Only execute if user can edit
         if role.can_edit() {
+            info!(action = %action.action, "Executing action");
             let action_result = execute_action(&state, board_id, auth.user.id, action).await?;
+
+            if action_result.success {
+                info!(
+                    action = %action_result.action,
+                    description = %action_result.description,
+                    "Action executed successfully"
+                );
+            } else {
+                warn!(
+                    action = %action_result.action,
+                    description = %action_result.description,
+                    "Action failed"
+                );
+            }
+
             actions_taken.push(action_result);
+        } else {
+            warn!(action = %action.action, "User lacks permission to execute action");
         }
     }
 
@@ -545,6 +684,12 @@ pub async fn send_message(
             actions_json.as_deref(),
         )
         .await?;
+
+    info!(
+        actions_executed = actions_taken.len(),
+        successful = actions_taken.iter().filter(|a| a.success).count(),
+        "Chat request completed"
+    );
 
     Ok(Json(ChatResponse {
         response: response_message,
