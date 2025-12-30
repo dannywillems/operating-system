@@ -47,7 +47,8 @@ tests/               # Integration tests
 ## Development Standards
 
 **Conventions**:
-- Makefile targets have `.PHONY` declarations
+- Makefile targets have `.PHONY` declaration immediately before each target
+- Makefile uses self-documenting help (`## comment` after target)
 - Use only Makefile targets for build/test/lint/format
 - Avoid UTF-8 emoji/special characters in code and docs
 - Nightly Rust toolchain (specified in `rust-toolchain.toml`)
@@ -65,6 +66,7 @@ tests/               # Integration tests
 
 **Commit standards**:
 - No emojis in messages
+- Do not add Claude as co-author
 - Wrap titles at 72 characters
 - Wrap body at 80 characters
 - Use conventional prefixes: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`
