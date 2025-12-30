@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block nav_right %}
+{% match user %}
+{% when Some with (name) %}
+<li class="nav-item"><a class="nav-link" href="/boards">Boards</a></li>
+<li class="nav-item">
+    <form method="post" action="/logout" class="d-inline">
+        <button type="submit" class="nav-link btn btn-link">Logout ({{ name }})</button>
+    </form>
+</li>
+{% when None %}
+<li class="nav-item"><a class="nav-link" href="/login">Login</a></li>
+<li class="nav-item"><a class="nav-link" href="/register">Register</a></li>
+{% endmatch %}
+{% endblock %}
+
+{% block content %}
+<div class="text-center py-5">
+    <h1 class="display-4">Personal Operating System</h1>
+    <p class="lead">Organize your life with a Kanban-based task management system.</p>
+    {% match user %}
+    {% when Some with (_) %}
+    <a href="/boards" class="btn btn-primary btn-lg">Go to Boards</a>
+    {% when None %}
+    <a href="/register" class="btn btn-primary btn-lg me-2">Get Started</a>
+    <a href="/login" class="btn btn-outline-secondary btn-lg">Login</a>
+    {% endmatch %}
+</div>
+{% endblock %}

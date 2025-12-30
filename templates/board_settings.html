@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}{{ board.name }} Settings - Personal OS{% endblock %}
+
+{% block nav %}
+<li class="nav-item"><a class="nav-link" href="/boards">Boards</a></li>
+<li class="nav-item"><a class="nav-link" href="/boards/{{ board.id }}">{{ board.name }}</a></li>
+<li class="nav-item"><a class="nav-link active" href="/boards/{{ board.id }}/settings">Settings</a></li>
+{% endblock %}
+
+{% block nav_right %}
+<li class="nav-item">
+    <form method="post" action="/logout" class="d-inline">
+        <button type="submit" class="nav-link btn btn-link">Logout ({{ user }})</button>
+    </form>
+</li>
+{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Board Settings</h1>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Board Information</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Name:</strong> {{ board.name }}</p>
+                {% if let Some(desc) = board.description.as_ref() %}
+                <p><strong>Description:</strong> {{ desc }}</p>
+                {% else %}
+                <p><strong>Description:</strong> <em>No description</em></p>
+                {% endif %}
+                <p><strong>Your Role:</strong> {{ board.role }}</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">Danger Zone</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Deleting a board will remove all columns, cards, and tags. This action cannot be undone.</p>
+                <button type="button" class="btn btn-danger" disabled>Delete Board</button>
+                <small class="d-block text-muted mt-2">Board deletion is available via the API only.</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <a href="/boards/{{ board.id }}" class="btn btn-outline-secondary">Back to Board</a>
+</div>
+{% endblock %}
