@@ -29,7 +29,16 @@ async fn main() -> anyhow::Result<()> {
 
     let app = create_router(state);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let host: [u8; 4] = std::env::var("HOST")
+        .unwrap_or_else(|_| "127.0.0.1".to_string())
+        .parse::<std::net::Ipv4Addr>()
+        .map(|ip| ip.octets())
+        .unwrap_or([127, 0, 0, 1]);
+    let port: u16 = std::env::var("PORT")
+        .unwrap_or_else(|_| "3000".to_string())
+        .parse()
+        .unwrap_or(3000);
+    let addr = SocketAddr::from((host, port));
     tracing::info!("Server listening on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;

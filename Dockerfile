@@ -51,6 +51,8 @@ EXPOSE 3000
 # Set environment variables
 ENV DATABASE_URL=sqlite:data.db?mode=rwc
 ENV RUST_LOG=personal_os=info,tower_http=info
+ENV HOST=0.0.0.0
+ENV PORT=3000
 
 # Run the application
 CMD ["./personal-os"]
