@@ -6,7 +6,9 @@ use uuid::Uuid;
 
 use crate::auth::AuthUser;
 use crate::error::{AppError, Result};
-use crate::models::{ActionTaken, CardVisibility, ChatResponse, LlmAction, SendChatRequest};
+use crate::models::{
+    ActionTaken, CardVisibility, ChatMessageResponse, ChatResponse, LlmAction, SendChatRequest,
+};
 use crate::state::AppState;
 
 /// Build the system prompt with board context
@@ -321,6 +323,9 @@ pub async fn send_message(
         .await?
         .ok_or(AppError::Forbidden)?;
 
+    // Store input message before moving
+    let user_message = input.message.clone();
+
     // Build system prompt with board context
     let system_prompt = build_system_prompt(&state, board_id).await?;
 
@@ -355,8 +360,76 @@ pub async fn send_message(
         response_message = llm_response;
     }
 
+    // Persist the chat message
+    let actions_json = if actions_taken.is_empty() {
+        None
+    } else {
+        Some(serde_json::to_string(&actions_taken).unwrap_or_default())
+    };
+
+    state
+        .chat_messages
+        .create(
+            board_id,
+            auth.user.id,
+            &user_message,
+            &response_message,
+            actions_json.as_deref(),
+        )
+        .await?;
+
     Ok(Json(ChatResponse {
         response: response_message,
         actions_taken,
     }))
+}
+
+/// Get chat history for a board
+pub async fn get_history(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path(board_id): Path<Uuid>,
+) -> Result<Json<Vec<ChatMessageResponse>>> {
+    // Verify user has access to board
+    state
+        .boards
+        .get_user_role(board_id, auth.user.id)
+        .await?
+        .ok_or(AppError::Forbidden)?;
+
+    // Get last 50 messages, ordered by created_at DESC
+    let messages = state.chat_messages.list_by_board(board_id, 50).await?;
+
+    // Convert to response format and reverse for chronological order
+    let responses: Vec<ChatMessageResponse> = messages
+        .into_iter()
+        .map(|m| m.into_response())
+        .rev()
+        .collect();
+
+    Ok(Json(responses))
+}
+
+/// Clear chat history for a board
+pub async fn clear_history(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path(board_id): Path<Uuid>,
+) -> Result<Json<serde_json::Value>> {
+    // Verify user has owner/editor access to board
+    let role = state
+        .boards
+        .get_user_role(board_id, auth.user.id)
+        .await?
+        .ok_or(AppError::Forbidden)?;
+
+    if !role.can_edit() {
+        return Err(AppError::Forbidden);
+    }
+
+    let deleted = state.chat_messages.delete_by_board(board_id).await?;
+
+    Ok(Json(serde_json::json!({
+        "deleted": deleted
+    })))
 }

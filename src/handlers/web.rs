@@ -64,6 +64,13 @@ struct BoardSettingsTemplate {
     tags: Vec<TagView>,
 }
 
+#[derive(Template)]
+#[template(path = "user_settings.html")]
+struct UserSettingsTemplate {
+    user: String,
+    chat_message_count: i64,
+}
+
 // View structs for templates
 #[allow(dead_code)]
 struct BoardView {
@@ -665,4 +672,28 @@ pub async fn remove_tag_from_card_submit(
     state.tags.remove_from_card(card_id, tag_id).await?;
 
     Ok(Redirect::to(&format!("/boards/{}", board_id)).into_response())
+}
+
+// User settings handlers
+pub async fn user_settings(
+    State(state): State<AppState>,
+    auth: AuthUser,
+) -> Result<impl IntoResponse> {
+    let chat_message_count = state.chat_messages.count_by_user(auth.user.id).await?;
+
+    let template = UserSettingsTemplate {
+        user: auth.user.name,
+        chat_message_count,
+    };
+
+    Ok(Html(template.render().unwrap()))
+}
+
+pub async fn delete_chat_history_submit(
+    State(state): State<AppState>,
+    auth: AuthUser,
+) -> Result<Response> {
+    state.chat_messages.delete_all_by_user(auth.user.id).await?;
+
+    Ok(Redirect::to("/settings").into_response())
 }

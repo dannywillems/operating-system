@@ -88,6 +88,14 @@ pub fn create_router(state: AppState) -> Router {
         .route(
             "/boards/{board_id}/chat",
             post(handlers::chat::send_message),
+        )
+        .route(
+            "/boards/{board_id}/chat/history",
+            get(handlers::chat::get_history),
+        )
+        .route(
+            "/boards/{board_id}/chat/history",
+            delete(handlers::chat::clear_history),
         );
 
     let web_routes = Router::new()
@@ -133,6 +141,12 @@ pub fn create_router(state: AppState) -> Router {
         .route(
             "/cards/{card_id}/tags/{tag_id}/remove",
             post(handlers::web::remove_tag_from_card_submit),
+        )
+        // User settings routes
+        .route("/settings", get(handlers::web::user_settings))
+        .route(
+            "/settings/chat-history/delete",
+            post(handlers::web::delete_chat_history_submit),
         );
 
     Router::new()

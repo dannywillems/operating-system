@@ -13,6 +13,9 @@
 
     let isExpanded = false;
 
+    // Load chat history on page load
+    loadHistory();
+
     // Toggle chat messages panel
     chatToggle.addEventListener('click', function() {
         isExpanded = !isExpanded;
@@ -63,7 +66,7 @@
             const data = await response.json();
             addMessage(data.response, 'assistant', data.actions_taken);
 
-            // If actions were taken, refresh the page to show updates
+            // If actions were taken that modified the board, refresh after a delay
             if (data.actions_taken && data.actions_taken.some(a => a.success)) {
                 setTimeout(() => {
                     window.location.reload();
@@ -75,9 +78,30 @@
         }
     });
 
-    function addMessage(content, type, actions) {
+    async function loadHistory() {
+        try {
+            const response = await fetch(`/api/boards/${boardId}/chat/history`);
+            if (!response.ok) return;
+
+            const messages = await response.json();
+            if (messages.length === 0) return;
+
+            // Render history messages
+            for (const msg of messages) {
+                addMessage(msg.message, 'user', null, true);
+                addMessage(msg.response, 'assistant', msg.actions_taken, true);
+            }
+        } catch (error) {
+            console.error('Failed to load chat history:', error);
+        }
+    }
+
+    function addMessage(content, type, actions, isHistory) {
         const msgEl = document.createElement('div');
         msgEl.className = `chat-message chat-message--${type}`;
+        if (isHistory) {
+            msgEl.classList.add('chat-message--history');
+        }
 
         let html = `<div class="chat-message-content">${escapeHtml(content)}</div>`;
 

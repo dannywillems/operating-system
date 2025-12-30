@@ -2,9 +2,9 @@ use sqlx::SqlitePool;
 use std::sync::Arc;
 
 use crate::repo::{
-    board::BoardRepository, card::CardRepository, column::ColumnRepository,
-    session::SessionRepository, tag::TagRepository, token::ApiTokenRepository,
-    user::UserRepository,
+    board::BoardRepository, card::CardRepository, chat_message::ChatMessageRepository,
+    column::ColumnRepository, session::SessionRepository, tag::TagRepository,
+    token::ApiTokenRepository, user::UserRepository,
 };
 use crate::services::OllamaClient;
 
@@ -17,6 +17,7 @@ pub struct AppState {
     pub columns: ColumnRepository,
     pub cards: CardRepository,
     pub tags: TagRepository,
+    pub chat_messages: ChatMessageRepository,
     pub ollama: OllamaClient,
     pub pool: Arc<SqlitePool>,
 }
@@ -32,6 +33,7 @@ impl AppState {
             columns: ColumnRepository::new(pool.clone()),
             cards: CardRepository::new(pool.clone()),
             tags: TagRepository::new(pool.clone()),
+            chat_messages: ChatMessageRepository::new(pool.clone()),
             ollama: OllamaClient::from_env(),
             pool,
         }

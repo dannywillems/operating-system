@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Personal OS{% endblock %}
+
+{% block nav %}
+<li class="nav-item"><a class="nav-link" href="/boards">Boards</a></li>
+<li class="nav-item"><a class="nav-link active" href="/settings">Settings</a></li>
+{% endblock %}
+
+{% block nav_right %}
+<li class="nav-item">
+    <form method="post" action="/logout" class="d-inline">
+        <button type="submit" class="nav-link btn btn-link">Logout ({{ user }})</button>
+    </form>
+</li>
+{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">User Settings</h1>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Chat History</h5>
+            </div>
+            <div class="card-body">
+                <p>You have <strong>{{ chat_message_count }}</strong> chat message(s) stored.</p>
+                <p class="text-muted">Chat history is used to maintain conversation context with the AI assistant on each board.</p>
+                {% if chat_message_count > 0 %}
+                <form method="post" action="/settings/chat-history/delete" onsubmit="return confirm('Are you sure you want to delete all your chat history? This cannot be undone.');">
+                    <button type="submit" class="btn btn-danger">Delete All Chat History</button>
+                </form>
+                {% else %}
+                <button type="button" class="btn btn-secondary" disabled>No Chat History</button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <a href="/boards" class="btn btn-outline-secondary">Back to Boards</a>
+</div>
+{% endblock %}
