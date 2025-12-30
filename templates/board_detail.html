@@ -2,6 +2,8 @@
 
 {% block title %}{{ board.name }} - Personal OS{% endblock %}
 
+{% block global_chat %}{% endblock %}
+
 {% block nav %}
 <li class="nav-item"><a class="nav-link" href="/boards">Boards</a></li>
 <li class="nav-item"><a class="nav-link active" href="/boards/{{ board.id }}">{{ board.name }}</a></li>
