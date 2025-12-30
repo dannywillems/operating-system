@@ -8,7 +8,8 @@ use uuid::Uuid;
 use crate::auth::AuthUser;
 use crate::error::{AppError, Result};
 use crate::models::{
-    ActionTaken, CardVisibility, ChatMessageResponse, ChatResponse, LlmAction, SendChatRequest,
+    ActionTaken, CardVisibility, ChatAction, ChatMessageResponse, ChatResponse, LlmAction,
+    SendChatRequest,
 };
 use crate::state::AppState;
 
@@ -153,37 +154,40 @@ Respond with JSON:
     }
 
     let examples = r##"
-1. create_card - Create a new card (specify board)
+1. create_board - Create a new board
+   {"action": "create_board", "params": {"name": "board name", "description": "optional description"}, "message": "Created board..."}
+
+2. create_card - Create a new card (specify board)
    {"action": "create_card", "params": {"board": "board name", "column": "column_name", "title": "card title", "body": "optional description"}, "message": "Created card..."}
 
-2. move_card - Move a card to another column (within same board)
+3. move_card - Move a card to another column (within same board)
    {"action": "move_card", "params": {"board": "board name", "card_title": "card to move", "target_column": "destination column"}, "message": "Moved card..."}
 
-3. move_card_cross_board - Move a card between boards
+4. move_card_cross_board - Move a card between boards
    {"action": "move_card_cross_board", "params": {"from_board": "source board", "to_board": "target board", "card": "card title", "column": "destination column"}, "message": "Moved card..."}
 
-4. create_tag - Create a new tag (specify board)
+5. create_tag - Create a new tag (specify board)
    {"action": "create_tag", "params": {"board": "board name", "name": "tag name", "color": "#hex_color"}, "message": "Created tag..."}
 
-5. add_tag - Add a tag to a card (specify board)
+6. add_tag - Add a tag to a card (specify board)
    {"action": "add_tag", "params": {"board": "board name", "card_title": "card title", "tag_name": "tag to add"}, "message": "Added tag..."}
 
-6. list_cards - List cards from a board
+7. list_cards - List cards from a board
    {"action": "list_cards", "params": {"board": "board name", "column": "optional column name"}, "message": "Here are the cards..."}
 
-7. list_tags - List all tags on a board
+8. list_tags - List all tags on a board
    {"action": "list_tags", "params": {"board": "board name"}, "message": "Here are the tags..."}
 
-8. delete_column - Delete a column (specify board)
+9. delete_column - Delete a column (specify board)
    {"action": "delete_column", "params": {"board": "board name", "column": "column name"}, "message": "Deleted column..."}
 
-9. delete_tag - Delete a tag (specify board)
+10. delete_tag - Delete a tag (specify board)
    {"action": "delete_tag", "params": {"board": "board name", "tag": "tag name"}, "message": "Deleted tag..."}
 
-10. delete_card - Delete a card (specify board)
+11. delete_card - Delete a card (specify board)
    {"action": "delete_card", "params": {"board": "board name", "card": "card title"}, "message": "Deleted card..."}
 
-11. no_action - Just respond without taking action
+12. no_action - Just respond without taking action
    {"action": "no_action", "params": {}, "message": "Your response here..."}
 "##;
 
@@ -300,8 +304,10 @@ async fn execute_action(
     user_id: Uuid,
     action: &LlmAction,
 ) -> Result<ActionTaken> {
-    match action.action.as_str() {
-        "create_card" | "createcard" => {
+    let chat_action: ChatAction = action.action.parse().unwrap_or(ChatAction::Unknown);
+
+    match chat_action {
+        ChatAction::CreateCard => {
             // Accept alternative param names
             let column_name = action.params["column"]
                 .as_str()
@@ -365,7 +371,7 @@ async fn execute_action(
             }
         }
 
-        "move_card" | "movecard" => {
+        ChatAction::MoveCard => {
             // Accept alternative param names the LLM might use
             let card_title = action.params["card_title"]
                 .as_str()
@@ -433,7 +439,7 @@ async fn execute_action(
             }
         }
 
-        "create_tag" | "createtag" => {
+        ChatAction::CreateTag => {
             // Accept alternative param names
             let name = action.params["name"]
                 .as_str()
@@ -462,7 +468,7 @@ async fn execute_action(
             })
         }
 
-        "add_tag" | "addtag" => {
+        ChatAction::AddTag => {
             // Accept alternative param names
             let card_title = action.params["card_title"]
                 .as_str()
@@ -529,7 +535,7 @@ async fn execute_action(
             }
         }
 
-        "delete_column" | "deletecolumn" => {
+        ChatAction::DeleteColumn => {
             // Accept alternative param names
             let column_name = action.params["column"]
                 .as_str()
@@ -570,7 +576,7 @@ async fn execute_action(
             }
         }
 
-        "delete_tag" | "deletetag" => {
+        ChatAction::DeleteTag => {
             // Accept alternative param names
             let tag_name = action.params["tag"]
                 .as_str()
@@ -608,7 +614,7 @@ async fn execute_action(
             }
         }
 
-        "delete_card" | "deletecard" => {
+        ChatAction::DeleteCard => {
             // Accept alternative param names
             let card_title = action.params["card"]
                 .as_str()
@@ -659,15 +665,20 @@ async fn execute_action(
             }
         }
 
-        "list_cards" | "listcards" | "list_tags" | "listtags" | "no_action" | "noaction" => {
-            Ok(ActionTaken {
-                action: action.action.clone(),
-                description: "No modification made".to_string(),
-                success: true,
-            })
-        }
+        ChatAction::ListCards | ChatAction::ListTags | ChatAction::NoAction => Ok(ActionTaken {
+            action: chat_action.to_string(),
+            description: "No modification made".to_string(),
+            success: true,
+        }),
 
-        _ => Ok(ActionTaken {
+        // CreateBoard and MoveCardCrossBoard are handled in global chat only
+        ChatAction::CreateBoard | ChatAction::MoveCardCrossBoard => Ok(ActionTaken {
+            action: chat_action.to_string(),
+            description: "This action is only available in global chat".to_string(),
+            success: false,
+        }),
+
+        ChatAction::Unknown => Ok(ActionTaken {
             action: action.action.clone(),
             description: format!("Unknown action: {}", action.action),
             success: false,
@@ -894,40 +905,40 @@ async fn execute_global_action(
 ) -> Result<ActionTaken> {
     info!(params = ?action.params, "Executing global chat action");
 
+    let chat_action: ChatAction = action.action.parse().unwrap_or(ChatAction::Unknown);
+
+    // Handle special actions that don't need an existing board
+    match chat_action {
+        ChatAction::MoveCardCrossBoard => {
+            return execute_cross_board_move(state, user_id, action).await;
+        }
+        ChatAction::CreateBoard => {
+            return execute_create_board(state, user_id, action).await;
+        }
+        _ => {}
+    }
+
+    // For read-only actions, we don't need a board
+    if chat_action.is_read_only() {
+        info!(action = %chat_action, "Read-only action, no board modification");
+        return Ok(ActionTaken {
+            action: chat_action.to_string(),
+            description: "No modification made".to_string(),
+            success: true,
+        });
+    }
+
     // Get board name from params
     let board_name = action.params["board"]
         .as_str()
         .or_else(|| action.params["board_name"].as_str())
         .unwrap_or("");
 
-    // Handle cross-board move separately
-    if action.action == "move_card_cross_board" || action.action == "movecardcrossboard" {
-        return execute_cross_board_move(state, user_id, action).await;
-    }
-
-    // For read-only actions, we don't need a board
-    let readonly_actions = [
-        "no_action",
-        "noaction",
-        "list_cards",
-        "listcards",
-        "list_tags",
-        "listtags",
-    ];
-    if readonly_actions.contains(&action.action.as_str()) {
-        info!(action = %action.action, "Read-only action, no board modification");
-        return Ok(ActionTaken {
-            action: action.action.clone(),
-            description: "No modification made".to_string(),
-            success: true,
-        });
-    }
-
     // Find the board
     if board_name.is_empty() {
         warn!("Missing board name in global action");
         return Ok(ActionTaken {
-            action: action.action.clone(),
+            action: chat_action.to_string(),
             description: format!(
                 "Missing board name. Please specify which board. Params: {:?}",
                 action.params
@@ -942,7 +953,7 @@ async fn execute_global_action(
         None => {
             warn!(board_name = %board_name, "Board not found");
             return Ok(ActionTaken {
-                action: action.action.clone(),
+                action: chat_action.to_string(),
                 description: format!("Board '{}' not found", board_name),
                 success: false,
             });
@@ -953,7 +964,7 @@ async fn execute_global_action(
     if !role_can_edit(&role) {
         warn!(board = %board.name, role = %role, "Insufficient permission");
         return Ok(ActionTaken {
-            action: action.action.clone(),
+            action: chat_action.to_string(),
             description: format!("You don't have permission to edit board '{}'", board.name),
             success: false,
         });
@@ -1163,6 +1174,44 @@ async fn execute_cross_board_move(
             "Moved '{}' from '{}' to '{}' (column '{}')",
             source_card.title, source_board.name, target_board.name, target_col.name
         ),
+        success: true,
+    })
+}
+
+/// Execute create_board action
+#[instrument(skip(state), fields(user_id = %user_id))]
+async fn execute_create_board(
+    state: &AppState,
+    user_id: Uuid,
+    action: &LlmAction,
+) -> Result<ActionTaken> {
+    let name = action.params["name"]
+        .as_str()
+        .or_else(|| action.params["board_name"].as_str())
+        .or_else(|| action.params["title"].as_str())
+        .unwrap_or("");
+
+    let description = action.params["description"]
+        .as_str()
+        .or_else(|| action.params["desc"].as_str());
+
+    if name.is_empty() {
+        return Ok(ActionTaken {
+            action: "create_board".to_string(),
+            description: format!("Missing board name. Params: {:?}", action.params),
+            success: false,
+        });
+    }
+
+    info!(name = %name, description = ?description, "Creating new board");
+
+    let board = state.boards.create(name, description, user_id).await?;
+
+    info!(board_id = %board.id, name = %board.name, "Board created successfully");
+
+    Ok(ActionTaken {
+        action: "create_board".to_string(),
+        description: format!("Created board '{}'", board.name),
         success: true,
     })
 }
