@@ -43,6 +43,11 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [dev-dependencies]
+axum-test = "16"
+cookie = "0.18"
 reqwest = { version = "0.11", features = ["json", "cookies"] }
+sqlx = { version = "0.7", features = ["runtime-tokio", "sqlite"] }
+tempfile = "3"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+tower = { version = "0.4", features = ["util"] }
 uuid = { version = "1", features = ["v4"] }
