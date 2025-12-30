@@ -157,40 +157,43 @@ Respond with JSON:
 1. create_board - Create a new board
    {"action": "create_board", "params": {"name": "board name", "description": "optional description"}, "message": "Created board..."}
 
-2. create_column - Create a new column (specify board)
+2. delete_board - Delete a board (only owner can delete, requires exact board name)
+   {"action": "delete_board", "params": {"board": "exact board name"}, "message": "Deleted board..."}
+
+3. create_column - Create a new column (specify board)
    {"action": "create_column", "params": {"board": "board name", "name": "column name"}, "message": "Created column..."}
 
-3. create_card - Create a new card (specify board and column)
+4. create_card - Create a new card (specify board and column)
    {"action": "create_card", "params": {"board": "board name", "column": "column_name", "title": "card title", "body": "optional description"}, "message": "Created card..."}
 
-4. move_card - Move a card to another column (within same board)
+5. move_card - Move a card to another column (within same board)
    {"action": "move_card", "params": {"board": "board name", "card_title": "card to move", "target_column": "destination column"}, "message": "Moved card..."}
 
-5. move_card_cross_board - Move a card between boards
+6. move_card_cross_board - Move a card between boards
    {"action": "move_card_cross_board", "params": {"from_board": "source board", "to_board": "target board", "card": "card title", "column": "destination column"}, "message": "Moved card..."}
 
-6. create_tag - Create a new tag (specify board)
+7. create_tag - Create a new tag (specify board)
    {"action": "create_tag", "params": {"board": "board name", "name": "tag name", "color": "#hex_color"}, "message": "Created tag..."}
 
-7. add_tag - Add a tag to a card (specify board)
+8. add_tag - Add a tag to a card (specify board)
    {"action": "add_tag", "params": {"board": "board name", "card_title": "card title", "tag_name": "tag to add"}, "message": "Added tag..."}
 
-8. list_cards - List cards from a board
+9. list_cards - List cards from a board
    {"action": "list_cards", "params": {"board": "board name", "column": "optional column name"}, "message": "Here are the cards..."}
 
-9. list_tags - List all tags on a board
+10. list_tags - List all tags on a board
    {"action": "list_tags", "params": {"board": "board name"}, "message": "Here are the tags..."}
 
-10. delete_column - Delete a column (specify board)
+11. delete_column - Delete a column (specify board)
    {"action": "delete_column", "params": {"board": "board name", "column": "column name"}, "message": "Deleted column..."}
 
-11. delete_tag - Delete a tag (specify board)
+12. delete_tag - Delete a tag (specify board)
    {"action": "delete_tag", "params": {"board": "board name", "tag": "tag name"}, "message": "Deleted tag..."}
 
-12. delete_card - Delete a card (specify board)
+13. delete_card - Delete a card (specify board)
    {"action": "delete_card", "params": {"board": "board name", "card": "card title"}, "message": "Deleted card..."}
 
-13. no_action - Just respond without taking action
+14. no_action - Just respond without taking action
    {"action": "no_action", "params": {}, "message": "Your response here..."}
 "##;
 
@@ -717,12 +720,14 @@ async fn execute_action(
             success: true,
         }),
 
-        // CreateBoard and MoveCardCrossBoard are handled in global chat only
-        ChatAction::CreateBoard | ChatAction::MoveCardCrossBoard => Ok(ActionTaken {
-            action: chat_action.to_string(),
-            description: "This action is only available in global chat".to_string(),
-            success: false,
-        }),
+        // CreateBoard, DeleteBoard, and MoveCardCrossBoard are handled in global chat only
+        ChatAction::CreateBoard | ChatAction::DeleteBoard | ChatAction::MoveCardCrossBoard => {
+            Ok(ActionTaken {
+                action: chat_action.to_string(),
+                description: "This action is only available in global chat".to_string(),
+                success: false,
+            })
+        }
 
         ChatAction::Unknown => Ok(ActionTaken {
             action: action.action.clone(),
@@ -960,6 +965,9 @@ async fn execute_global_action(
         }
         ChatAction::CreateBoard => {
             return execute_create_board(state, user_id, action).await;
+        }
+        ChatAction::DeleteBoard => {
+            return execute_delete_board(state, user_id, action).await;
         }
         _ => {}
     }
@@ -1258,6 +1266,69 @@ async fn execute_create_board(
     Ok(ActionTaken {
         action: "create_board".to_string(),
         description: format!("Created board '{}'", board.name),
+        success: true,
+    })
+}
+
+/// Execute delete_board action (only owner can delete)
+#[instrument(skip(state), fields(user_id = %user_id))]
+async fn execute_delete_board(
+    state: &AppState,
+    user_id: Uuid,
+    action: &LlmAction,
+) -> Result<ActionTaken> {
+    let board_name = action.params["board"]
+        .as_str()
+        .or_else(|| action.params["board_name"].as_str())
+        .or_else(|| action.params["name"].as_str())
+        .unwrap_or("");
+
+    if board_name.is_empty() {
+        return Ok(ActionTaken {
+            action: "delete_board".to_string(),
+            description: format!("Missing board name. Params: {:?}", action.params),
+            success: false,
+        });
+    }
+
+    info!(board_name = %board_name, "Attempting to delete board");
+
+    // Find the board and check ownership
+    let board_result = find_board_by_name(state, user_id, board_name).await?;
+
+    let (board, role) = match board_result {
+        Some(br) => br,
+        None => {
+            warn!(board_name = %board_name, "Board not found for deletion");
+            return Ok(ActionTaken {
+                action: "delete_board".to_string(),
+                description: format!("Board '{}' not found", board_name),
+                success: false,
+            });
+        }
+    };
+
+    // Only owner can delete a board
+    if role.to_lowercase() != "owner" {
+        warn!(board = %board.name, role = %role, "Non-owner attempted to delete board");
+        return Ok(ActionTaken {
+            action: "delete_board".to_string(),
+            description: format!(
+                "Only the owner can delete board '{}'. Your role: {}",
+                board.name, role
+            ),
+            success: false,
+        });
+    }
+
+    // Delete the board
+    state.boards.delete(board.id).await?;
+
+    info!(board_id = %board.id, name = %board.name, "Board deleted successfully");
+
+    Ok(ActionTaken {
+        action: "delete_board".to_string(),
+        description: format!("Deleted board '{}'", board.name),
         success: true,
     })
 }

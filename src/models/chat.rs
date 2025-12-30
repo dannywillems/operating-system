@@ -8,6 +8,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ChatAction {
     CreateBoard,
+    DeleteBoard,
     CreateColumn,
     CreateCard,
     MoveCard,
@@ -52,6 +53,7 @@ impl FromStr for ChatAction {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().replace('_', "").as_str() {
             "createboard" => Ok(ChatAction::CreateBoard),
+            "deleteboard" => Ok(ChatAction::DeleteBoard),
             "createcolumn" => Ok(ChatAction::CreateColumn),
             "createcard" => Ok(ChatAction::CreateCard),
             "movecard" => Ok(ChatAction::MoveCard),
@@ -73,6 +75,7 @@ impl fmt::Display for ChatAction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ChatAction::CreateBoard => write!(f, "create_board"),
+            ChatAction::DeleteBoard => write!(f, "delete_board"),
             ChatAction::CreateColumn => write!(f, "create_column"),
             ChatAction::CreateCard => write!(f, "create_card"),
             ChatAction::MoveCard => write!(f, "move_card"),
