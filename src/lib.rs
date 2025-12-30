@@ -84,7 +84,7 @@ pub fn create_router(state: AppState) -> Router {
             "/cards/{card_id}/tags/{tag_id}",
             delete(handlers::tags::remove_tag_from_card),
         )
-        // Chat routes
+        // Chat routes (board-specific)
         .route(
             "/boards/{board_id}/chat",
             post(handlers::chat::send_message),
@@ -96,6 +96,13 @@ pub fn create_router(state: AppState) -> Router {
         .route(
             "/boards/{board_id}/chat/history",
             delete(handlers::chat::clear_history),
+        )
+        // Global chat routes (cross-board)
+        .route("/chat", post(handlers::chat::send_global_message))
+        .route("/chat/history", get(handlers::chat::get_global_history))
+        .route(
+            "/chat/history",
+            delete(handlers::chat::clear_global_history),
         );
 
     let web_routes = Router::new()

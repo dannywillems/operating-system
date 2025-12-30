@@ -37,7 +37,25 @@
         {% block content %}{% endblock %}
     </main>
 
+    {% block global_chat %}
+    <!-- Global Chat (cross-board) -->
+    <div class="chat-container" id="global-chat-container">
+        <div class="chat-messages" id="global-chat-messages"></div>
+        <form class="chat-bar" id="global-chat-form">
+            <button type="button" class="chat-toggle-btn" id="global-chat-toggle">
+                <i class="bi bi-chevron-up"></i>
+            </button>
+            <div class="chat-input-group">
+                <input type="text" class="chat-input" id="global-chat-input"
+                       placeholder="Ask about any board..." autocomplete="off">
+                <button type="submit" class="chat-send-btn">Send</button>
+            </div>
+        </form>
+    </div>
+    {% endblock %}
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/global-chat.js"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

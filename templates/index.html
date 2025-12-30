@@ -1,5 +1,26 @@
 {% extends "base.html" %}
 
+{% block global_chat %}
+{% match user %}
+{% when Some with (_) %}
+<!-- Global Chat (cross-board) -->
+<div class="chat-container" id="global-chat-container">
+    <div class="chat-messages" id="global-chat-messages"></div>
+    <form class="chat-bar" id="global-chat-form">
+        <button type="button" class="chat-toggle-btn" id="global-chat-toggle">
+            <i class="bi bi-chevron-up"></i>
+        </button>
+        <div class="chat-input-group">
+            <input type="text" class="chat-input" id="global-chat-input"
+                   placeholder="Ask about any board..." autocomplete="off">
+            <button type="submit" class="chat-send-btn">Send</button>
+        </div>
+    </form>
+</div>
+{% when None %}
+{% endmatch %}
+{% endblock %}
+
 {% block nav_right %}
 {% match user %}
 {% when Some with (name) %}

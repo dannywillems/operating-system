@@ -3,10 +3,11 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// Persisted chat message
+/// board_id is optional to support global chat (None = global, Some = board-specific)
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct ChatMessage {
     pub id: Uuid,
-    pub board_id: Uuid,
+    pub board_id: Option<Uuid>,
     pub user_id: Uuid,
     pub message: String,
     pub response: String,
