@@ -1,20 +1,41 @@
 # Personal Operating System
 
-A Kanban-based task management webapp built with Rust, featuring boards, columns, cards, tags, and a full REST API.
+Personal Operating System (POS) is an open, self-hosted, LLM-driven operating system for execution and cognition externalization.
 
-## Features
+It can be used as a task manager, but it is designed to go significantly beyond traditional task management by acting as a long-term, auditable control plane for work, life, and decision-making.
 
-- Kanban board with drag-and-drop-ready cards
-- Multiple boards with customizable columns
-- Card tagging and filtering
-- Full-text search on cards
-- Date filtering (start, end, due dates)
-- User authentication with email/password
-- Session-based auth for web, API tokens for programmatic access
-- Board permissions: owner, editor, reader
-- Card visibility: private, restricted, public
-- Server-rendered UI with Bootstrap
-- REST API with JSON responses
+POS unifies tasks, projects, habits, learning, health, travel, and investments into a single, structured system that remains observable, queryable, and automation-first over time.
+
+## Goals
+
+- Provide a unified system to manage tasks, projects, and long-term initiatives
+- Externalize cognition in a structured, machine-readable form
+- Optimize prioritization, focus, and execution over time
+- Make actions, decisions, and outcomes auditable
+- Enable selective transparency (public, restricted, private views)
+- Serve as a durable system of record
+- Act as a first-class substrate for LLM-driven agents
+
+## LLM-Driven by Design
+
+POS is designed to be operated both by humans and by Large Language Models.
+
+### Core Principles
+
+- Full, stable API covering all state transitions (create, update, move, tag, archive, report)
+- Explicit domain model optimized for machine interaction
+- Deterministic behavior with no hidden business logic
+- The UI is a projection of the system, not the source of truth
+
+### This Enables
+
+- Managing tasks and Kanban boards via natural-language commands
+- AI agents that create, prioritize, and reorganize work
+- Automated daily and weekly reporting
+- Continuous optimization of focus and throughput
+- Integration with external systems (GitHub, Gitea, trackers, data sources)
+
+LLMs are treated as operators of the system, not assistants layered on top.
 
 ## Tech Stack
 
