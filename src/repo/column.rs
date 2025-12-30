@@ -15,7 +15,12 @@ impl ColumnRepository {
         Self { pool }
     }
 
-    pub async fn create(&self, board_id: Uuid, name: &str, position: Option<i32>) -> Result<Column> {
+    pub async fn create(
+        &self,
+        board_id: Uuid,
+        name: &str,
+        position: Option<i32>,
+    ) -> Result<Column> {
         let id = Uuid::new_v4();
 
         // Get the next position if not specified

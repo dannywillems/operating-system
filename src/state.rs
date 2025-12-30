@@ -2,12 +2,8 @@ use sqlx::SqlitePool;
 use std::sync::Arc;
 
 use crate::repo::{
-    board::BoardRepository,
-    card::CardRepository,
-    column::ColumnRepository,
-    session::SessionRepository,
-    tag::TagRepository,
-    token::ApiTokenRepository,
+    board::BoardRepository, card::CardRepository, column::ColumnRepository,
+    session::SessionRepository, tag::TagRepository, token::ApiTokenRepository,
     user::UserRepository,
 };
 

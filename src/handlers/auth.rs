@@ -8,7 +8,9 @@ use uuid::Uuid;
 
 use crate::auth::{generate_token, hash_password, hash_token, verify_password, AuthUser};
 use crate::error::{AppError, Result};
-use crate::models::{ApiTokenCreatedResponse, ApiTokenResponse, CreateApiToken, CreateUser, UserResponse};
+use crate::models::{
+    ApiTokenCreatedResponse, ApiTokenResponse, CreateApiToken, CreateUser, UserResponse,
+};
 use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]

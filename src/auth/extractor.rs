@@ -43,9 +43,7 @@ where
 
         // Check Authorization header for API token
         if let Some(auth_header) = parts.headers.get("Authorization") {
-            let auth_str = auth_header
-                .to_str()
-                .map_err(|_| AppError::Unauthorized)?;
+            let auth_str = auth_header.to_str().map_err(|_| AppError::Unauthorized)?;
 
             if let Some(token) = auth_str.strip_prefix("Bearer ") {
                 let token_hash = hash_token(token);

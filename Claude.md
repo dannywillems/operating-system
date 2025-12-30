@@ -76,6 +76,8 @@ tests/               # Integration tests
 - Use Bootstrap Icons exclusively for all icons
 - Use UUIDs for all entity IDs
 - Use chrono for dates/timestamps
+- Prefer `core` over `std` where possible (for portability)
+- Use SASS for stylesheets, split into modular files
 
 ## Database
 

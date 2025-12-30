@@ -70,7 +70,10 @@ pub async fn update_column(
         return Err(AppError::Forbidden);
     }
 
-    let updated = state.columns.update(column_id, input.name.as_deref()).await?;
+    let updated = state
+        .columns
+        .update(column_id, input.name.as_deref())
+        .await?;
     Ok(Json(updated.into()))
 }
 

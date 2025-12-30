@@ -107,7 +107,9 @@ pub async fn get_card(
     }
 
     let tags = state.tags.list_for_card(card.id).await?;
-    Ok(Json(card.into_response(tags.into_iter().map(|t| t.into()).collect())))
+    Ok(Json(card.into_response(
+        tags.into_iter().map(|t| t.into()).collect(),
+    )))
 }
 
 pub async fn update_card(
@@ -142,7 +144,9 @@ pub async fn update_card(
         .await?;
 
     let tags = state.tags.list_for_card(card.id).await?;
-    Ok(Json(card.into_response(tags.into_iter().map(|t| t.into()).collect())))
+    Ok(Json(card.into_response(
+        tags.into_iter().map(|t| t.into()).collect(),
+    )))
 }
 
 pub async fn delete_card(
@@ -198,5 +202,7 @@ pub async fn move_card(
         .await?;
 
     let tags = state.tags.list_for_card(card.id).await?;
-    Ok(Json(card.into_response(tags.into_iter().map(|t| t.into()).collect())))
+    Ok(Json(card.into_response(
+        tags.into_iter().map(|t| t.into()).collect(),
+    )))
 }

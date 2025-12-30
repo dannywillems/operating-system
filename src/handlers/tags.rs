@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::auth::AuthUser;
 use crate::error::{AppError, Result};
-use crate::models::{CreateTag, TagResponse};
+use crate::models::{CreateTag, TagResponse, UpdateTag};
 use crate::state::AppState;
 
 pub async fn create_tag(
@@ -54,6 +54,7 @@ pub async fn update_tag(
     State(state): State<AppState>,
     auth: AuthUser,
     Path(tag_id): Path<Uuid>,
+    Json(input): Json<UpdateTag>,
 ) -> Result<Json<TagResponse>> {
     // We need the board_id to check permissions, get it from the tag
     let tag = state.tags.get_by_id(tag_id).await?;
@@ -68,7 +69,12 @@ pub async fn update_tag(
         return Err(AppError::Forbidden);
     }
 
-    Ok(Json(tag.into()))
+    let updated_tag = state
+        .tags
+        .update(tag_id, input.name.as_deref(), input.color.as_deref())
+        .await?;
+
+    Ok(Json(updated_tag.into()))
 }
 
 pub async fn delete_tag(

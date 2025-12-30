@@ -16,6 +16,7 @@ impl CardRepository {
         Self { pool }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn create(
         &self,
         column_id: Uuid,
@@ -178,6 +179,7 @@ impl CardRepository {
         Ok(cards)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn update(
         &self,
         id: Uuid,
@@ -228,7 +230,12 @@ impl CardRepository {
         Ok(())
     }
 
-    pub async fn move_card(&self, id: Uuid, new_column_id: Uuid, new_position: i32) -> Result<Card> {
+    pub async fn move_card(
+        &self,
+        id: Uuid,
+        new_column_id: Uuid,
+        new_position: i32,
+    ) -> Result<Card> {
         let card = self.get_by_id(id).await?;
 
         // If moving within the same column

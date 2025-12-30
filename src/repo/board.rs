@@ -27,7 +27,12 @@ impl BoardRepository {
         Self { pool }
     }
 
-    pub async fn create(&self, name: &str, description: Option<&str>, owner_id: Uuid) -> Result<Board> {
+    pub async fn create(
+        &self,
+        name: &str,
+        description: Option<&str>,
+        owner_id: Uuid,
+    ) -> Result<Board> {
         let id = Uuid::new_v4();
 
         let board = sqlx::query_as::<_, Board>(
@@ -45,7 +50,8 @@ impl BoardRepository {
         .await?;
 
         // Add owner permission
-        self.add_permission(board.id, owner_id, BoardRole::Owner).await?;
+        self.add_permission(board.id, owner_id, BoardRole::Owner)
+            .await?;
 
         Ok(board)
     }
@@ -97,7 +103,12 @@ impl BoardRepository {
         Ok(boards)
     }
 
-    pub async fn update(&self, id: Uuid, name: Option<&str>, description: Option<&str>) -> Result<Board> {
+    pub async fn update(
+        &self,
+        id: Uuid,
+        name: Option<&str>,
+        description: Option<&str>,
+    ) -> Result<Board> {
         let board = sqlx::query_as::<_, Board>(
             r#"
             UPDATE boards
@@ -142,7 +153,12 @@ impl BoardRepository {
         Ok(role.and_then(|r| r.parse().ok()))
     }
 
-    pub async fn add_permission(&self, board_id: Uuid, user_id: Uuid, role: BoardRole) -> Result<BoardPermission> {
+    pub async fn add_permission(
+        &self,
+        board_id: Uuid,
+        user_id: Uuid,
+        role: BoardRole,
+    ) -> Result<BoardPermission> {
         let id = Uuid::new_v4();
 
         let permission = sqlx::query_as::<_, BoardPermission>(

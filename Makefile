@@ -8,6 +8,10 @@
 # Configuration
 DATABASE_URL ?= sqlite:data.db?mode=rwc
 
+# Dependency versions
+SQLX_CLI_VERSION ?= 0.7.4
+TAPLO_VERSION ?= 0.9.3
+
 ## help: Show this help message
 help:
 	@echo "Personal Operating System - Available targets:"
@@ -16,8 +20,8 @@ help:
 
 ## install: Install development dependencies
 install:
-	cargo install sqlx-cli --no-default-features --features sqlite
-	cargo install taplo-cli
+	cargo install sqlx-cli@$(SQLX_CLI_VERSION) --no-default-features --features sqlite
+	cargo install taplo-cli@$(TAPLO_VERSION)
 
 ## build: Build the project in release mode
 build:

@@ -62,6 +62,7 @@ struct BoardSettingsTemplate {
 }
 
 // View structs for templates
+#[allow(dead_code)]
 struct BoardView {
     id: String,
     name: String,
@@ -69,6 +70,7 @@ struct BoardView {
     role: String,
 }
 
+#[allow(dead_code)]
 struct ColumnView {
     id: String,
     name: String,
@@ -76,6 +78,7 @@ struct ColumnView {
     cards: Vec<CardView>,
 }
 
+#[allow(dead_code)]
 struct CardView {
     id: String,
     title: String,
@@ -86,6 +89,7 @@ struct CardView {
 }
 
 #[derive(Clone)]
+#[allow(dead_code)]
 struct TagView {
     id: String,
     name: String,
@@ -217,7 +221,11 @@ pub async fn register_submit(
     Ok(Redirect::to("/login").into_response())
 }
 
-pub async fn logout(State(state): State<AppState>, jar: CookieJar, auth: AuthUser) -> Result<Response> {
+pub async fn logout(
+    State(state): State<AppState>,
+    jar: CookieJar,
+    auth: AuthUser,
+) -> Result<Response> {
     if let Some(token) = auth.session_token {
         state.sessions.delete_by_token(&token).await?;
     }
@@ -231,7 +239,10 @@ pub async fn logout(State(state): State<AppState>, jar: CookieJar, auth: AuthUse
     Ok((jar.add(cookie), Redirect::to("/")).into_response())
 }
 
-pub async fn boards_page(State(state): State<AppState>, auth: AuthUser) -> Result<impl IntoResponse> {
+pub async fn boards_page(
+    State(state): State<AppState>,
+    auth: AuthUser,
+) -> Result<impl IntoResponse> {
     let boards = state.boards.list_for_user(auth.user.id).await?;
 
     let board_views: Vec<BoardView> = boards

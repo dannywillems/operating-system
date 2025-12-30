@@ -79,7 +79,8 @@ pub async fn get_board(
         let mut card_responses = Vec::new();
         for card in cards {
             let card_tags = state.tags.list_for_card(card.id).await?;
-            card_responses.push(card.into_response(card_tags.into_iter().map(|t| t.into()).collect()));
+            card_responses
+                .push(card.into_response(card_tags.into_iter().map(|t| t.into()).collect()));
         }
         let mut col_response: crate::models::ColumnResponse = col.into();
         col_response.cards = card_responses;
@@ -117,7 +118,11 @@ pub async fn update_board(
 
     let board = state
         .boards
-        .update(board_id, input.name.as_deref(), input.description.as_deref())
+        .update(
+            board_id,
+            input.name.as_deref(),
+            input.description.as_deref(),
+        )
         .await?;
 
     Ok(Json(BoardResponse {
@@ -168,9 +173,7 @@ pub async fn add_permission(
 
     // Cannot add another owner
     if input.role == BoardRole::Owner {
-        return Err(AppError::BadRequest(
-            "Cannot add another owner".to_string(),
-        ));
+        return Err(AppError::BadRequest("Cannot add another owner".to_string()));
     }
 
     state

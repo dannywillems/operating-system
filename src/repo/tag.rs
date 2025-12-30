@@ -49,12 +49,11 @@ impl TagRepository {
     }
 
     pub async fn list_by_board(&self, board_id: Uuid) -> Result<Vec<Tag>> {
-        let tags = sqlx::query_as::<_, Tag>(
-            "SELECT * FROM tags WHERE board_id = $1 ORDER BY name ASC",
-        )
-        .bind(board_id)
-        .fetch_all(self.pool.as_ref())
-        .await?;
+        let tags =
+            sqlx::query_as::<_, Tag>("SELECT * FROM tags WHERE board_id = $1 ORDER BY name ASC")
+                .bind(board_id)
+                .fetch_all(self.pool.as_ref())
+                .await?;
 
         Ok(tags)
     }

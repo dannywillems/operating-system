@@ -304,7 +304,10 @@ async fn test_tags_on_cards() {
 
     // Add tag to card
     let add_tag_response = client
-        .post(format!("{}/api/cards/{}/tags/{}", BASE_URL, card_id, tag_id))
+        .post(format!(
+            "{}/api/cards/{}/tags/{}",
+            BASE_URL, card_id, tag_id
+        ))
         .send()
         .await
         .expect("Failed to add tag to card");
@@ -326,7 +329,10 @@ async fn test_tags_on_cards() {
 
     // Remove tag from card
     let remove_tag_response = client
-        .delete(format!("{}/api/cards/{}/tags/{}", BASE_URL, card_id, tag_id))
+        .delete(format!(
+            "{}/api/cards/{}/tags/{}",
+            BASE_URL, card_id, tag_id
+        ))
         .send()
         .await
         .expect("Failed to remove tag from card");
