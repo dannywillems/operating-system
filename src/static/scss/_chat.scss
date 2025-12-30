@@ -109,7 +109,28 @@
 
 .chat-message-content {
   font-size: 0.875rem;
-  line-height: 1.4;
+  line-height: 1.5;
+
+  code {
+    background: $color-gray-200;
+    padding: 0.125rem 0.25rem;
+    border-radius: 3px;
+    font-size: 0.8rem;
+  }
+
+  strong {
+    font-weight: 600;
+  }
+
+  ul,
+  ol {
+    margin: 0.5rem 0;
+    padding-left: 1.25rem;
+  }
+
+  li {
+    margin-bottom: 0.25rem;
+  }
 }
 
 .chat-message-actions {

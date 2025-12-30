@@ -103,7 +103,9 @@
             msgEl.classList.add('chat-message--history');
         }
 
-        let html = `<div class="chat-message-content">${escapeHtml(content)}</div>`;
+        // Format the content for better readability
+        const formattedContent = formatContent(content, type);
+        let html = `<div class="chat-message-content">${formattedContent}</div>`;
 
         if (actions && actions.length > 0) {
             html += '<div class="chat-message-actions">';
@@ -119,6 +121,46 @@
         chatMessages.appendChild(msgEl);
         chatMessages.scrollTop = chatMessages.scrollHeight;
         return msgEl;
+    }
+
+    function formatContent(content, type) {
+        if (type === 'user') {
+            return escapeHtml(content);
+        }
+
+        // For assistant messages, apply formatting
+        let text = content;
+
+        // Escape HTML first
+        text = escapeHtml(text);
+
+        // Convert markdown-style formatting
+        // Bold: **text** or __text__
+        text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        text = text.replace(/__(.+?)__/g, '<strong>$1</strong>');
+
+        // Italic: *text* or _text_
+        text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+        text = text.replace(/_([^_]+)_/g, '<em>$1</em>');
+
+        // Code: `text`
+        text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+        // Lists: lines starting with - or *
+        text = text.replace(/^[\-\*]\s+(.+)$/gm, '<li>$1</li>');
+        text = text.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+
+        // Numbered lists: lines starting with 1. 2. etc
+        text = text.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+
+        // Line breaks
+        text = text.replace(/\n/g, '<br>');
+
+        // Clean up extra breaks around lists
+        text = text.replace(/<br>(<ul>)/g, '$1');
+        text = text.replace(/(<\/ul>)<br>/g, '$1');
+
+        return text;
     }
 
     function addLoading() {
