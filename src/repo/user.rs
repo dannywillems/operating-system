@@ -69,4 +69,21 @@ impl UserRepository {
 
         Ok(result > 0)
     }
+
+    pub async fn update_llm_context(&self, id: Uuid, llm_context: Option<&str>) -> Result<User> {
+        let user = sqlx::query_as::<_, User>(
+            r#"
+            UPDATE users
+            SET llm_context = $2, updated_at = datetime('now')
+            WHERE id = $1
+            RETURNING *
+            "#,
+        )
+        .bind(id)
+        .bind(llm_context)
+        .fetch_one(self.pool.as_ref())
+        .await?;
+
+        Ok(user)
+    }
 }

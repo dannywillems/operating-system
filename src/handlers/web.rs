@@ -69,6 +69,7 @@ struct BoardSettingsTemplate {
 struct UserSettingsTemplate {
     user: String,
     chat_message_count: i64,
+    llm_context: Option<String>,
 }
 
 // View structs for templates
@@ -682,11 +683,36 @@ pub async fn user_settings(
     let chat_message_count = state.chat_messages.count_by_user(auth.user.id).await?;
 
     let template = UserSettingsTemplate {
-        user: auth.user.name,
+        user: auth.user.name.clone(),
         chat_message_count,
+        llm_context: auth.user.llm_context,
     };
 
     Ok(Html(template.render().unwrap()))
+}
+
+#[derive(Deserialize)]
+pub struct UpdateLlmContextForm {
+    llm_context: Option<String>,
+}
+
+pub async fn update_llm_context_submit(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Form(input): Form<UpdateLlmContextForm>,
+) -> Result<Response> {
+    // Trim and convert empty string to None
+    let context = input
+        .llm_context
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+
+    state
+        .users
+        .update_llm_context(auth.user.id, context.as_deref())
+        .await?;
+
+    Ok(Redirect::to("/settings").into_response())
 }
 
 pub async fn delete_chat_history_submit(

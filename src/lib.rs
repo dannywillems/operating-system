@@ -145,6 +145,10 @@ pub fn create_router(state: AppState) -> Router {
         // User settings routes
         .route("/settings", get(handlers::web::user_settings))
         .route(
+            "/settings/llm-context",
+            post(handlers::web::update_llm_context_submit),
+        )
+        .route(
             "/settings/chat-history/delete",
             post(handlers::web::delete_chat_history_submit),
         );

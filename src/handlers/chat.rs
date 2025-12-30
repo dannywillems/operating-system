@@ -11,8 +11,12 @@ use crate::models::{
 };
 use crate::state::AppState;
 
-/// Build the system prompt with board context
-async fn build_system_prompt(state: &AppState, board_id: Uuid) -> Result<String> {
+/// Build the system prompt with board context and user context
+async fn build_system_prompt(
+    state: &AppState,
+    board_id: Uuid,
+    user_context: Option<&str>,
+) -> Result<String> {
     let board = state.boards.get_by_id(board_id).await?;
     let columns = state.columns.list_by_board(board_id).await?;
     let tags = state.tags.list_by_board(board_id).await?;
@@ -52,9 +56,14 @@ async fn build_system_prompt(state: &AppState, board_id: Uuid) -> Result<String>
         tag_names.join(", ")
     };
 
+    let user_context_section = match user_context {
+        Some(ctx) if !ctx.is_empty() => format!("\nUser context:\n{}\n", ctx),
+        _ => String::new(),
+    };
+
     Ok(format!(
         r#"You are a Kanban board assistant for the board "{board_name}".
-
+{user_context}
 You can execute these actions by responding with JSON:
 {examples}
 Current board state:
@@ -65,6 +74,7 @@ Current board state:
 IMPORTANT: Always respond with valid JSON in the format shown above. Use "no_action" if the user is just asking a question or chatting.
 "#,
         board_name = board.name,
+        user_context = user_context_section,
         examples = examples,
         columns = column_info.join(", "),
         tags = tags_str
@@ -326,8 +336,9 @@ pub async fn send_message(
     // Store input message before moving
     let user_message = input.message.clone();
 
-    // Build system prompt with board context
-    let system_prompt = build_system_prompt(&state, board_id).await?;
+    // Build system prompt with board context and user's custom context
+    let system_prompt =
+        build_system_prompt(&state, board_id, auth.user.llm_context.as_deref()).await?;
 
     // Create messages for Ollama
     let messages = vec![

@@ -8,6 +8,7 @@
 {% endblock %}
 
 {% block nav_right %}
+<li class="nav-item"><a class="nav-link" href="/settings"><i class="bi bi-gear"></i></a></li>
 <li class="nav-item">
     <form method="post" action="/logout" class="d-inline">
         <button type="submit" class="nav-link btn btn-link">Logout ({{ user }})</button>
@@ -19,7 +20,24 @@
 <h1 class="mb-4">User Settings</h1>
 
 <div class="row">
-    <div class="col-md-6">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">LLM Context</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Provide additional context about yourself that will be included in all AI assistant conversations. This helps the assistant understand your preferences, role, or any specific instructions.</p>
+                <form method="post" action="/settings/llm-context">
+                    <div class="mb-3">
+                        <label for="llmContext" class="form-label">Custom Context</label>
+                        <textarea class="form-control" id="llmContext" name="llm_context" rows="6" placeholder="Example: I am a software engineer working on web applications. I prefer concise responses and practical examples.">{% if let Some(ctx) = llm_context.as_ref() %}{{ ctx }}{% endif %}</textarea>
+                        <div class="form-text">This context is prepended to the system prompt when using the chat assistant.</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save Context</button>
+                </form>
+            </div>
+        </div>
+
         <div class="card mb-4">
             <div class="card-header">
                 <h5 class="mb-0">Chat History</h5>
