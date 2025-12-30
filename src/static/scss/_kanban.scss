@@ -30,12 +30,14 @@
 }
 
 .kanban-column {
-  min-width: $kanban-column-width;
-  max-width: $kanban-column-width;
+  min-width: 200px;
+  max-width: 600px;
+  width: $kanban-column-width;
   background: var(--kanban-column-bg);
   border-radius: $border-radius-md;
   padding: $spacing-md;
   flex-shrink: 0;
+  position: relative;
 
   // Column states
   &--dragging {
@@ -43,8 +45,71 @@
   }
 
   &--drop-target {
-    outline: 2px dashed $color-primary;
+    outline: 2px dashed var(--color-primary);
     outline-offset: -2px;
+  }
+
+  &--resizing {
+    user-select: none;
+  }
+}
+
+// Resize handle on the right edge of columns
+.kanban-column-resize {
+  position: absolute;
+  top: 0;
+  right: -8px;
+  width: 16px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 10;
+
+  // Visible grip indicator (3 dots)
+  &::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 4px;
+    height: 20px;
+    background-image: radial-gradient(circle, var(--text-muted) 1.5px, transparent 1.5px);
+    background-size: 4px 6px;
+    background-repeat: repeat-y;
+    opacity: 0.5;
+    transition: opacity 0.15s ease;
+  }
+
+  // Hover highlight bar
+  &::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 3px;
+    height: 100%;
+    background: var(--color-primary);
+    border-radius: 2px;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  &:hover::before {
+    opacity: 1;
+  }
+
+  &:hover::after,
+  &--active::after {
+    opacity: 0.6;
+  }
+
+  &--active::before {
+    opacity: 1;
+  }
+
+  &--active::after {
+    opacity: 1;
   }
 }
 
@@ -149,7 +214,7 @@
     color 0.15s ease-in-out;
 
   &:hover {
-    border-color: $color-primary;
-    color: $color-primary;
+    border-color: var(--color-primary);
+    color: var(--color-primary);
   }
 }

@@ -1,5 +1,4 @@
 // Chat interface styles
-@use "sass:color";
 @use "variables" as *;
 
 .chat-container {
@@ -37,26 +36,26 @@
 
   &:focus {
     outline: none;
-    border-color: $color-primary;
-    box-shadow: 0 0 0 2px rgba($color-primary, 0.2);
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.2);
   }
 }
 
 .chat-send-btn {
   padding: $spacing-sm $spacing-lg;
-  background: $color-primary;
-  color: $color-white;
+  background: var(--color-primary);
+  color: var(--color-white);
   border: none;
   border-radius: $border-radius-md;
   cursor: pointer;
   font-size: 0.875rem;
 
   &:hover {
-    background: color.adjust($color-primary, $lightness: -10%);
+    background: var(--color-primary-hover);
   }
 
   &:disabled {
-    background: $color-gray-400;
+    background: var(--text-muted);
     cursor: not-allowed;
   }
 }
@@ -93,7 +92,7 @@
 
   &--user {
     background: var(--chat-user-bg);
-    color: $color-white;
+    color: var(--color-white);
     margin-left: auto;
   }
 
@@ -104,9 +103,9 @@
   }
 
   &--error {
-    background: rgba($color-danger, 0.1);
-    border: 1px solid $color-danger;
-    color: $color-danger;
+    background: rgba(220, 53, 69, 0.1);
+    border: 1px solid var(--color-danger);
+    color: var(--color-danger);
   }
 }
 
@@ -142,11 +141,11 @@
   color: var(--text-secondary);
 
   .action-success {
-    color: $color-success;
+    color: var(--color-success);
   }
 
   .action-failed {
-    color: $color-danger;
+    color: var(--color-danger);
   }
 }
 
@@ -163,7 +162,7 @@
   width: 16px;
   height: 16px;
   border: 2px solid var(--border-color);
-  border-top-color: $color-primary;
+  border-top-color: var(--color-primary);
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
 }

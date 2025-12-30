@@ -2,6 +2,17 @@
 // Light mode is default, dark mode is activated via data-theme="dark"
 
 :root {
+  // Brand colors
+  --color-primary: #0d6efd;
+  --color-primary-hover: #0b5ed7;
+  --color-secondary: #6c757d;
+  --color-success: #198754;
+  --color-danger: #dc3545;
+  --color-warning: #ffc107;
+  --color-info: #0dcaf0;
+  --color-white: #ffffff;
+  --color-black: #000000;
+
   // Background colors
   --bg-primary: #ffffff;
   --bg-secondary: #f8f9fa;
@@ -12,6 +23,13 @@
   --text-primary: #212529;
   --text-secondary: #6c757d;
   --text-muted: #adb5bd;
+  --text-on-primary: #ffffff;
+  --text-on-dark: rgba(255, 255, 255, 0.8);
+  --text-on-dark-hover: rgba(255, 255, 255, 1);
+
+  // Link colors
+  --link-color: var(--color-primary);
+  --link-hover-color: var(--color-primary-hover);
 
   // Border colors
   --border-color: #dee2e6;
@@ -22,15 +40,16 @@
   --card-border: #dee2e6;
   --input-bg: #ffffff;
   --input-border: #ced4da;
+  --input-focus-border: var(--color-primary);
 
   // Kanban
-  --kanban-column-bg: #f8f9fa;
+  --kanban-column-bg: #e9ecef;
   --kanban-card-bg: #ffffff;
 
   // Chat
   --chat-bg: #ffffff;
   --chat-messages-bg: #f8f9fa;
-  --chat-user-bg: #0d6efd;
+  --chat-user-bg: var(--color-primary);
   --chat-assistant-bg: #ffffff;
 
   // Shadows
@@ -40,6 +59,13 @@
 }
 
 [data-theme="dark"] {
+  // Brand colors (same in dark mode, but can be adjusted)
+  --color-primary: #3b82f6;
+  --color-primary-hover: #2563eb;
+  --color-success: #22c55e;
+  --color-danger: #ef4444;
+  --color-warning: #f59e0b;
+
   // Background colors
   --bg-primary: #1a1d21;
   --bg-secondary: #212529;
@@ -50,6 +76,11 @@
   --text-primary: #e9ecef;
   --text-secondary: #adb5bd;
   --text-muted: #8b949e;
+  --text-on-primary: #ffffff;
+
+  // Link colors
+  --link-color: var(--color-primary);
+  --link-hover-color: var(--color-primary-hover);
 
   // Border colors
   --border-color: #5c636a;
@@ -60,15 +91,16 @@
   --card-border: #6c757d;
   --input-bg: #2c3034;
   --input-border: #5c636a;
+  --input-focus-border: var(--color-primary);
 
   // Kanban
-  --kanban-column-bg: #212529;
-  --kanban-card-bg: #2c3034;
+  --kanban-column-bg: #2c3034;
+  --kanban-card-bg: #343a40;
 
   // Chat
   --chat-bg: #1a1d21;
   --chat-messages-bg: #212529;
-  --chat-user-bg: #0d6efd;
+  --chat-user-bg: var(--color-primary);
   --chat-assistant-bg: #2c3034;
 
   // Shadows (more subtle in dark mode)
@@ -103,7 +135,11 @@ small {
 }
 
 a:not(.btn):not(.nav-link):not(.navbar-brand) {
-  color: #0d6efd;
+  color: var(--link-color);
+
+  &:hover {
+    color: var(--link-hover-color);
+  }
 }
 
 // Cards
@@ -180,7 +216,7 @@ a:not(.btn):not(.nav-link):not(.navbar-brand) {
 .theme-toggle {
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--text-on-dark);
   cursor: pointer;
   padding: 0.25rem 0.5rem;
   font-size: 1.25rem;
@@ -188,7 +224,7 @@ a:not(.btn):not(.nav-link):not(.navbar-brand) {
   transition: color 0.2s ease;
 
   &:hover {
-    color: rgba(255, 255, 255, 1);
+    color: var(--text-on-dark-hover);
   }
 }
 
@@ -230,9 +266,12 @@ hr {
 
 .btn-outline-primary {
   color: var(--text-primary);
+  border-color: var(--color-primary);
 
   &:hover {
-    color: #fff;
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
+    color: var(--text-on-primary);
   }
 }
 
