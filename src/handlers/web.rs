@@ -1,6 +1,6 @@
 use askama::Template;
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     response::{Html, IntoResponse, Redirect, Response},
     Form,
 };
@@ -52,6 +52,8 @@ struct BoardDetailTemplate {
     board: BoardView,
     columns: Vec<ColumnView>,
     tags: Vec<TagView>,
+    filter_tags: Vec<FilterTagView>,
+    has_active_filters: bool,
 }
 
 #[derive(Template)]
@@ -95,6 +97,16 @@ struct TagView {
     id: String,
     name: String,
     color: String,
+}
+
+#[derive(Clone)]
+#[allow(dead_code)]
+struct FilterTagView {
+    id: String,
+    name: String,
+    color: String,
+    is_active: bool,
+    toggle_url: String,
 }
 
 // Form structs
@@ -144,6 +156,12 @@ pub struct CreateTagForm {
 #[derive(Deserialize)]
 pub struct AddTagToCardForm {
     tag_id: Uuid,
+}
+
+#[derive(Deserialize, Default)]
+pub struct BoardFilterQuery {
+    #[serde(default)]
+    tags: Option<String>,
 }
 
 // Handlers
@@ -299,6 +317,7 @@ pub async fn board_detail(
     State(state): State<AppState>,
     auth: AuthUser,
     Path(board_id): Path<Uuid>,
+    Query(filter): Query<BoardFilterQuery>,
 ) -> Result<impl IntoResponse> {
     let board = state.boards.get_by_id(board_id).await?;
     let role = state
@@ -310,6 +329,18 @@ pub async fn board_detail(
     let columns = state.columns.list_by_board(board_id).await?;
     let tags = state.tags.list_by_board(board_id).await?;
 
+    // Parse active tag filters from query string (comma-separated UUIDs)
+    let active_tag_ids: Vec<String> = filter
+        .tags
+        .as_ref()
+        .map(|t| t.split(',').map(|s| s.trim().to_string()).collect())
+        .unwrap_or_default();
+
+    let active_tag_uuids: Vec<Uuid> = active_tag_ids
+        .iter()
+        .filter_map(|s| Uuid::parse_str(s).ok())
+        .collect();
+
     let tag_views: Vec<TagView> = tags
         .iter()
         .map(|t| TagView {
@@ -319,12 +350,74 @@ pub async fn board_detail(
         })
         .collect();
 
+    // Build filter tags with pre-computed toggle URLs
+    let filter_tags: Vec<FilterTagView> = tags
+        .iter()
+        .map(|t| {
+            let tag_id_str = t.id.to_string();
+            let is_active = active_tag_ids.contains(&tag_id_str);
+
+            let toggle_url = if is_active {
+                // Remove this tag from filter
+                let other_tags: Vec<&String> = active_tag_ids
+                    .iter()
+                    .filter(|id| *id != &tag_id_str)
+                    .collect();
+                if other_tags.is_empty() {
+                    format!("/boards/{}", board_id)
+                } else {
+                    format!(
+                        "/boards/{}?tags={}",
+                        board_id,
+                        other_tags
+                            .iter()
+                            .map(|s| s.as_str())
+                            .collect::<Vec<_>>()
+                            .join(",")
+                    )
+                }
+            } else {
+                // Add this tag to filter
+                if active_tag_ids.is_empty() {
+                    format!("/boards/{}?tags={}", board_id, tag_id_str)
+                } else {
+                    format!(
+                        "/boards/{}?tags={},{}",
+                        board_id,
+                        active_tag_ids.join(","),
+                        tag_id_str
+                    )
+                }
+            };
+
+            FilterTagView {
+                id: tag_id_str,
+                name: t.name.clone(),
+                color: t.color.clone(),
+                is_active,
+                toggle_url,
+            }
+        })
+        .collect();
+
+    let has_active_filters = !active_tag_ids.is_empty();
+
     let mut column_views = Vec::new();
     for col in columns {
         let cards = state.cards.list_by_column(col.id).await?;
         let mut card_views = Vec::new();
         for card in cards {
             let card_tags = state.tags.list_for_card(card.id).await?;
+
+            // Filter: if active tags are set, only show cards that have ALL of them
+            if !active_tag_uuids.is_empty() {
+                let card_tag_ids: Vec<Uuid> = card_tags.iter().map(|t| t.id).collect();
+                let has_all_tags = active_tag_uuids.iter().all(|t| card_tag_ids.contains(t));
+                if !has_all_tags {
+                    continue;
+                }
+            }
+
             card_views.push(CardView {
                 id: card.id.to_string(),
                 title: card.title,
@@ -359,6 +452,8 @@ pub async fn board_detail(
         },
         columns: column_views,
         tags: tag_views,
+        filter_tags,
+        has_active_filters,
     };
 
     Ok(Html(template.render().unwrap()))

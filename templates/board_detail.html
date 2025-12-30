@@ -37,6 +37,30 @@
     </div>
 </div>
 
+{% if !filter_tags.is_empty() %}
+<div class="mb-3 d-flex align-items-center flex-wrap gap-2">
+    <span class="text-muted me-2"><i class="bi bi-funnel"></i> Filter:</span>
+    {% for tag in filter_tags %}
+    {% if tag.is_active %}
+    <a href="{{ tag.toggle_url }}"
+       class="badge tag-badge text-decoration-none" style="background-color: {{ tag.color }}; outline: 2px solid #000;">
+        <i class="bi bi-check"></i> {{ tag.name }}
+    </a>
+    {% else %}
+    <a href="{{ tag.toggle_url }}"
+       class="badge tag-badge text-decoration-none" style="background-color: {{ tag.color }}; opacity: 0.6;">
+        {{ tag.name }}
+    </a>
+    {% endif %}
+    {% endfor %}
+    {% if has_active_filters %}
+    <a href="/boards/{{ board.id }}" class="btn btn-sm btn-outline-secondary ms-2">
+        <i class="bi bi-x-lg"></i> Clear
+    </a>
+    {% endif %}
+</div>
+{% endif %}
+
 <div class="kanban-board">
     {% for column in columns %}
     <div class="kanban-column">
