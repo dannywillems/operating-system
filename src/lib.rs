@@ -110,6 +110,23 @@ pub fn create_router(state: AppState) -> Router {
         .route(
             "/cards/{card_id}/move",
             post(handlers::web::move_card_submit),
+        )
+        // Tag routes
+        .route(
+            "/boards/{board_id}/tags/new",
+            post(handlers::web::create_tag_submit),
+        )
+        .route(
+            "/boards/{board_id}/tags/{tag_id}/delete",
+            post(handlers::web::delete_tag_submit),
+        )
+        .route(
+            "/cards/{card_id}/tags/add",
+            post(handlers::web::add_tag_to_card_submit),
+        )
+        .route(
+            "/cards/{card_id}/tags/{tag_id}/remove",
+            post(handlers::web::remove_tag_from_card_submit),
         );
 
     Router::new()

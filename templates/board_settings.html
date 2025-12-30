@@ -36,6 +36,46 @@
             </div>
         </div>
 
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Tags</h5>
+            </div>
+            <div class="card-body">
+                {% if tags.is_empty() %}
+                <p class="text-muted">No tags yet. Create your first tag below.</p>
+                {% else %}
+                <div class="mb-3">
+                    {% for tag in tags %}
+                    <span class="badge tag-badge me-1 mb-1" style="background-color: {{ tag.color }}">
+                        {{ tag.name }}
+                        <form method="post" action="/boards/{{ board.id }}/tags/{{ tag.id }}/delete" class="d-inline">
+                            <button type="submit" class="btn-close btn-close-white ms-1" style="font-size: 0.5rem;" aria-label="Delete"></button>
+                        </form>
+                    </span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <hr>
+                <h6>Create New Tag</h6>
+                <form method="post" action="/boards/{{ board.id }}/tags/new">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-auto">
+                            <label for="tagName" class="form-label">Name</label>
+                            <input type="text" class="form-control form-control-sm" id="tagName" name="name" required placeholder="e.g. work, private, urgent">
+                        </div>
+                        <div class="col-auto">
+                            <label for="tagColor" class="form-label">Color</label>
+                            <input type="color" class="form-control form-control-color form-control-sm" id="tagColor" name="color" value="#6c757d">
+                        </div>
+                        <div class="col-auto">
+                            <button type="submit" class="btn btn-primary btn-sm">Add Tag</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <div class="card">
             <div class="card-header bg-danger text-white">
                 <h5 class="mb-0">Danger Zone</h5>

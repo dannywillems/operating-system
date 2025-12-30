@@ -55,13 +55,40 @@
                 {% if let Some(body) = card.body.as_ref() %}
                 <div class="small text-muted mt-1">{{ body }}</div>
                 {% endif %}
-                {% if !card.tags.is_empty() %}
                 <div class="mt-2">
                     {% for tag in card.tags %}
-                    <span class="badge tag-badge" style="background-color: {{ tag.color }}">{{ tag.name }}</span>
+                    <span class="badge tag-badge me-1" style="background-color: {{ tag.color }}">
+                        {{ tag.name }}
+                        {% if board.role == "owner" || board.role == "editor" %}
+                        <form method="post" action="/cards/{{ card.id }}/tags/{{ tag.id }}/remove" class="d-inline">
+                            <button type="submit" class="btn-close btn-close-white ms-1" style="font-size: 0.4rem;" aria-label="Remove"></button>
+                        </form>
+                        {% endif %}
+                    </span>
                     {% endfor %}
+                    {% if board.role == "owner" || board.role == "editor" %}
+                    {% if !tags.is_empty() %}
+                    <div class="dropdown d-inline">
+                        <button class="btn btn-outline-secondary btn-sm py-0 px-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Add tag">
+                            <i class="bi bi-tag"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            {% for tag in tags %}
+                            <li>
+                                <form method="post" action="/cards/{{ card.id }}/tags/add">
+                                    <input type="hidden" name="tag_id" value="{{ tag.id }}">
+                                    <button type="submit" class="dropdown-item">
+                                        <span class="badge me-1" style="background-color: {{ tag.color }}">&nbsp;</span>
+                                        {{ tag.name }}
+                                    </button>
+                                </form>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    {% endif %}
                 </div>
-                {% endif %}
             </div>
             {% endfor %}
         </div>
@@ -122,14 +149,17 @@
     </div>
 </div>
 
-{% if !tags.is_empty() %}
 <div class="mt-4">
     <h5>Tags</h5>
+    {% if tags.is_empty() %}
+    <p class="text-muted">No tags yet. <a href="/boards/{{ board.id }}/settings">Create tags in settings</a>.</p>
+    {% else %}
     <div>
         {% for tag in tags %}
         <span class="badge tag-badge" style="background-color: {{ tag.color }}">{{ tag.name }}</span>
         {% endfor %}
+        <a href="/boards/{{ board.id }}/settings" class="btn btn-sm btn-outline-secondary ms-2">Manage Tags</a>
     </div>
+    {% endif %}
 </div>
-{% endif %}
 {% endblock %}

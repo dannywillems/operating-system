@@ -59,6 +59,7 @@ struct BoardDetailTemplate {
 struct BoardSettingsTemplate {
     user: String,
     board: BoardView,
+    tags: Vec<TagView>,
 }
 
 // View structs for templates
@@ -132,6 +133,17 @@ pub struct CreateCardForm {
 pub struct MoveCardForm {
     column_id: Uuid,
     position: i32,
+}
+
+#[derive(Deserialize)]
+pub struct CreateTagForm {
+    name: String,
+    color: String,
+}
+
+#[derive(Deserialize)]
+pub struct AddTagToCardForm {
+    tag_id: Uuid,
 }
 
 // Handlers
@@ -364,6 +376,16 @@ pub async fn board_settings(
         .await?
         .ok_or(AppError::Forbidden)?;
 
+    let tags = state.tags.list_by_board(board_id).await?;
+    let tag_views: Vec<TagView> = tags
+        .into_iter()
+        .map(|t| TagView {
+            id: t.id.to_string(),
+            name: t.name,
+            color: t.color,
+        })
+        .collect();
+
     let template = BoardSettingsTemplate {
         user: auth.user.name,
         board: BoardView {
@@ -372,6 +394,7 @@ pub async fn board_settings(
             description: board.description,
             role: role.to_string(),
         },
+        tags: tag_views,
     };
 
     Ok(Html(template.render().unwrap()))
@@ -456,6 +479,95 @@ pub async fn move_card_submit(
         .cards
         .move_card(card_id, input.column_id, input.position)
         .await?;
+
+    Ok(Redirect::to(&format!("/boards/{}", board_id)).into_response())
+}
+
+pub async fn create_tag_submit(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path(board_id): Path<Uuid>,
+    Form(input): Form<CreateTagForm>,
+) -> Result<Response> {
+    let role = state
+        .boards
+        .get_user_role(board_id, auth.user.id)
+        .await?
+        .ok_or(AppError::Forbidden)?;
+
+    if !role.can_edit() {
+        return Err(AppError::Forbidden);
+    }
+
+    state
+        .tags
+        .create(board_id, &input.name, &input.color)
+        .await?;
+
+    Ok(Redirect::to(&format!("/boards/{}/settings", board_id)).into_response())
+}
+
+pub async fn delete_tag_submit(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path((board_id, tag_id)): Path<(Uuid, Uuid)>,
+) -> Result<Response> {
+    let role = state
+        .boards
+        .get_user_role(board_id, auth.user.id)
+        .await?
+        .ok_or(AppError::Forbidden)?;
+
+    if !role.can_edit() {
+        return Err(AppError::Forbidden);
+    }
+
+    state.tags.delete(tag_id).await?;
+
+    Ok(Redirect::to(&format!("/boards/{}/settings", board_id)).into_response())
+}
+
+pub async fn add_tag_to_card_submit(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path(card_id): Path<Uuid>,
+    Form(input): Form<AddTagToCardForm>,
+) -> Result<Response> {
+    let board_id = state.cards.get_board_id_for_card(card_id).await?;
+
+    let role = state
+        .boards
+        .get_user_role(board_id, auth.user.id)
+        .await?
+        .ok_or(AppError::Forbidden)?;
+
+    if !role.can_edit() {
+        return Err(AppError::Forbidden);
+    }
+
+    state.tags.add_to_card(card_id, input.tag_id).await?;
+
+    Ok(Redirect::to(&format!("/boards/{}", board_id)).into_response())
+}
+
+pub async fn remove_tag_from_card_submit(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path((card_id, tag_id)): Path<(Uuid, Uuid)>,
+) -> Result<Response> {
+    let board_id = state.cards.get_board_id_for_card(card_id).await?;
+
+    let role = state
+        .boards
+        .get_user_role(board_id, auth.user.id)
+        .await?
+        .ok_or(AppError::Forbidden)?;
+
+    if !role.can_edit() {
+        return Err(AppError::Forbidden);
+    }
+
+    state.tags.remove_from_card(card_id, tag_id).await?;
 
     Ok(Redirect::to(&format!("/boards/{}", board_id)).into_response())
 }
