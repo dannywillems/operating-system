@@ -20,6 +20,7 @@ pub enum ChatAction {
     DeleteColumn,
     DeleteTag,
     DeleteCard,
+    WebSearch,
     NoAction,
     Unknown,
 }
@@ -29,7 +30,10 @@ impl ChatAction {
     pub fn is_read_only(&self) -> bool {
         matches!(
             self,
-            ChatAction::ListCards | ChatAction::ListTags | ChatAction::NoAction
+            ChatAction::ListCards
+                | ChatAction::ListTags
+                | ChatAction::WebSearch
+                | ChatAction::NoAction
         )
     }
 
@@ -39,6 +43,7 @@ impl ChatAction {
             self,
             ChatAction::CreateBoard
                 | ChatAction::MoveCardCrossBoard
+                | ChatAction::WebSearch
                 | ChatAction::NoAction
                 | ChatAction::ListCards
                 | ChatAction::ListTags
@@ -65,6 +70,7 @@ impl FromStr for ChatAction {
             "deletecolumn" => Ok(ChatAction::DeleteColumn),
             "deletetag" => Ok(ChatAction::DeleteTag),
             "deletecard" => Ok(ChatAction::DeleteCard),
+            "websearch" | "search" => Ok(ChatAction::WebSearch),
             "noaction" => Ok(ChatAction::NoAction),
             _ => Ok(ChatAction::Unknown),
         }
@@ -87,6 +93,7 @@ impl fmt::Display for ChatAction {
             ChatAction::DeleteColumn => write!(f, "delete_column"),
             ChatAction::DeleteTag => write!(f, "delete_tag"),
             ChatAction::DeleteCard => write!(f, "delete_card"),
+            ChatAction::WebSearch => write!(f, "web_search"),
             ChatAction::NoAction => write!(f, "no_action"),
             ChatAction::Unknown => write!(f, "unknown"),
         }

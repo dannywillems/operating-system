@@ -193,7 +193,10 @@ Respond with JSON:
 13. delete_card - Delete a card (specify board)
    {"action": "delete_card", "params": {"board": "board name", "card": "card title"}, "message": "Deleted card..."}
 
-14. no_action - Just respond without taking action
+14. web_search - Search the internet for information (use when you need current data or external knowledge)
+   {"action": "web_search", "params": {"query": "search query here"}, "message": "Let me search for that..."}
+
+15. no_action - Just respond without taking action
    {"action": "no_action", "params": {}, "message": "Your response here..."}
 "##;
 
@@ -720,6 +723,11 @@ async fn execute_action(
             success: true,
         }),
 
+        ChatAction::WebSearch => {
+            // Web search works in both board-specific and global chat
+            execute_web_search(state, action).await
+        }
+
         // CreateBoard, DeleteBoard, and MoveCardCrossBoard are handled in global chat only
         ChatAction::CreateBoard | ChatAction::DeleteBoard | ChatAction::MoveCardCrossBoard => {
             Ok(ActionTaken {
@@ -968,6 +976,9 @@ async fn execute_global_action(
         }
         ChatAction::DeleteBoard => {
             return execute_delete_board(state, user_id, action).await;
+        }
+        ChatAction::WebSearch => {
+            return execute_web_search(state, action).await;
         }
         _ => {}
     }
@@ -1333,6 +1344,46 @@ async fn execute_delete_board(
     })
 }
 
+/// Execute web_search action
+#[instrument(skip(state))]
+async fn execute_web_search(state: &AppState, action: &LlmAction) -> Result<ActionTaken> {
+    let query = action.params["query"]
+        .as_str()
+        .or_else(|| action.params["search"].as_str())
+        .or_else(|| action.params["q"].as_str())
+        .unwrap_or("");
+
+    if query.is_empty() {
+        return Ok(ActionTaken {
+            action: "web_search".to_string(),
+            description: format!("Missing search query. Params: {:?}", action.params),
+            success: false,
+        });
+    }
+
+    info!(query = %query, "Executing web search");
+
+    match state.web_search.search(query, 5).await {
+        Ok(results) => {
+            let results_text = crate::services::format_search_results(&results);
+            info!(count = results.len(), "Web search completed");
+            Ok(ActionTaken {
+                action: "web_search".to_string(),
+                description: results_text,
+                success: true,
+            })
+        }
+        Err(e) => {
+            warn!(error = %e, "Web search failed");
+            Ok(ActionTaken {
+                action: "web_search".to_string(),
+                description: format!("Search failed: {}", e),
+                success: false,
+            })
+        }
+    }
+}
+
 /// Send a global chat message (cross-board)
 #[instrument(skip(state, auth, input), fields(user_id = %auth.user.id))]
 pub async fn send_global_message(
@@ -1384,17 +1435,15 @@ pub async fn send_global_message(
         );
     }
 
+    // Track the final response message (may be updated by web search)
+    let mut final_llm_response = llm_response.clone();
+
     // Execute all parsed actions
     for action in &parsed_actions {
-        let readonly_actions = [
-            "no_action",
-            "noaction",
-            "list_cards",
-            "listcards",
-            "list_tags",
-            "listtags",
-        ];
-        if readonly_actions.contains(&action.action.as_str()) {
+        let chat_action: ChatAction = action.action.parse().unwrap_or(ChatAction::Unknown);
+
+        // Skip read-only actions (except web search which we handle specially)
+        if chat_action.is_read_only() && chat_action != ChatAction::WebSearch {
             debug!(action = %action.action, "Skipping read-only action");
             continue;
         }
@@ -1408,6 +1457,51 @@ pub async fn send_global_message(
                 description = %action_result.description,
                 "Global action executed successfully"
             );
+
+            // For web search, make a follow-up LLM call with the results
+            if chat_action == ChatAction::WebSearch {
+                info!("Making follow-up LLM call with search results");
+
+                let system_prompt_clone = build_global_system_prompt(
+                    &state,
+                    auth.user.id,
+                    auth.user.llm_context.as_deref(),
+                )
+                .await?;
+
+                let followup_messages = vec![
+                    crate::services::ollama::OllamaMessage {
+                        role: "system".to_string(),
+                        content: system_prompt_clone,
+                    },
+                    crate::services::ollama::OllamaMessage {
+                        role: "user".to_string(),
+                        content: user_message.clone(),
+                    },
+                    crate::services::ollama::OllamaMessage {
+                        role: "assistant".to_string(),
+                        content: llm_response.clone(),
+                    },
+                    crate::services::ollama::OllamaMessage {
+                        role: "user".to_string(),
+                        content: format!(
+                            "Here are the search results:\n\n{}\n\nBased on these results, please provide a helpful response to my original question. Use no_action since you're just providing information.",
+                            action_result.description
+                        ),
+                    },
+                ];
+
+                match state.ollama.chat(followup_messages).await {
+                    Ok(followup_response) => {
+                        info!("Follow-up LLM response received");
+                        final_llm_response = followup_response;
+                    }
+                    Err(e) => {
+                        warn!(error = %e, "Follow-up LLM call failed, using search results directly");
+                        // Keep the original response with search results shown
+                    }
+                }
+            }
         } else {
             warn!(
                 action = %action_result.action,
@@ -1420,7 +1514,8 @@ pub async fn send_global_message(
     }
 
     // Extract a readable message from the response
-    let response_message = extract_readable_message(&llm_response, &parsed_actions);
+    let final_parsed = parse_llm_response(&final_llm_response);
+    let response_message = extract_readable_message(&final_llm_response, &final_parsed);
 
     // Persist the chat message (global = no board_id)
     let actions_json = if actions_taken.is_empty() {

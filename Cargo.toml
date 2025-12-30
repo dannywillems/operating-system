@@ -38,6 +38,10 @@ askama = "0.15"
 # HTTP client
 reqwest = { version = "0.12", features = ["json"] }
 
+# HTML parsing (for web search)
+scraper = "0.22"
+urlencoding = "2.1"
+
 # Utilities
 anyhow = "1"
 dotenvy = "0.15"
