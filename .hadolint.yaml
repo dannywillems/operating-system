@@ -1,0 +1,17 @@
+---
+# Hadolint configuration
+# https://github.com/hadolint/hadolint
+
+failure-threshold: warning
+
+ignored:
+  # We use apt-get install with multiple packages on one line for readability
+  - DL3008  # Pin versions in apt-get install
+
+trustedRegistries:
+  - docker.io
+  - ghcr.io
+
+override:
+  warning:
+    - DL3059  # Multiple consecutive RUN instructions

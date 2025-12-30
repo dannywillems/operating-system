@@ -32,7 +32,21 @@ A Kanban-based task management webapp built with Rust, featuring boards, columns
 - Rust nightly toolchain
 - SQLite
 
-### Installation
+### Using Docker
+
+The easiest way to run the application:
+
+```bash
+# Build the Docker image
+make docker-build
+
+# Run the container
+make docker-run
+```
+
+The server will be available at `http://localhost:3000`.
+
+### Manual Installation
 
 1. Clone the repository:
 ```bash
@@ -110,6 +124,9 @@ make migrate         # Run database migrations
 make db-reset        # Reset the database
 make clean           # Remove build artifacts
 make check           # Run format-check, lint, and test
+make docker-build    # Build Docker image
+make docker-run      # Run Docker container
+make docker-lint     # Lint Dockerfile with hadolint
 ```
 
 ### Code Quality
@@ -126,6 +143,7 @@ make test
 ```
 .
 |-- Cargo.toml           # Project dependencies
+|-- Dockerfile           # Container build instructions
 |-- Makefile             # Build automation
 |-- migrations/          # Database migrations
 |-- src/

@@ -28,6 +28,17 @@ jobs:
       - name: Check formatting
         run: make format-check
 
+  hadolint:
+    name: Lint Dockerfile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+
   lint:
     name: Lint (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
