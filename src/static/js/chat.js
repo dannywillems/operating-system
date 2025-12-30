@@ -10,8 +10,16 @@
     const chatForm = document.getElementById('chat-form');
     const chatToggle = document.getElementById('chat-toggle');
     const boardId = chatContainer.dataset.boardId;
+    const CHAT_STATE_KEY = 'chat-expanded';
 
-    let isExpanded = false;
+    // Restore chat state from localStorage
+    let isExpanded = localStorage.getItem(CHAT_STATE_KEY) === 'true';
+
+    // Apply initial state
+    if (isExpanded) {
+        chatMessages.classList.add('expanded');
+        chatToggle.innerHTML = '<i class="bi bi-chevron-down"></i>';
+    }
 
     // Load chat history on page load
     loadHistory();
@@ -19,6 +27,7 @@
     // Toggle chat messages panel
     chatToggle.addEventListener('click', function() {
         isExpanded = !isExpanded;
+        localStorage.setItem(CHAT_STATE_KEY, isExpanded);
         chatMessages.classList.toggle('expanded', isExpanded);
         chatToggle.innerHTML = isExpanded ?
             '<i class="bi bi-chevron-down"></i>' :
@@ -39,6 +48,7 @@
         // Expand messages if not already
         if (!isExpanded) {
             isExpanded = true;
+            localStorage.setItem(CHAT_STATE_KEY, 'true');
             chatMessages.classList.add('expanded');
             chatToggle.innerHTML = '<i class="bi bi-chevron-down"></i>';
         }

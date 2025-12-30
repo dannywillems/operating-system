@@ -46,7 +46,13 @@ async fn build_system_prompt(
 5. list_cards - List cards (optionally filtered by column)
    {"action": "list_cards", "params": {"column": "optional column name"}, "message": "Here are the cards..."}
 
-6. no_action - Just respond without taking action
+6. list_tags - List all tags on the board
+   {"action": "list_tags", "params": {}, "message": "Here are the tags..."}
+
+7. delete_column - Delete a column (and all its cards)
+   {"action": "delete_column", "params": {"column": "column name"}, "message": "Deleted column..."}
+
+8. no_action - Just respond without taking action
    {"action": "no_action", "params": {}, "message": "Your response here..."}
 "##;
 
@@ -81,14 +87,14 @@ IMPORTANT: Always respond with valid JSON in the format shown above. Use "no_act
     ))
 }
 
-/// Parse the LLM response to extract action
-fn parse_llm_response(response: &str) -> Option<LlmAction> {
-    // Try to find JSON in the response
+/// Parse the LLM response to extract actions (handles multiple JSON objects)
+fn parse_llm_response(response: &str) -> Vec<LlmAction> {
     let response = response.trim();
+    let mut actions = Vec::new();
 
-    // Try direct JSON parse first
+    // Try direct JSON parse first (single action)
     if let Ok(action) = serde_json::from_str::<LlmAction>(response) {
-        return Some(action);
+        return vec![action];
     }
 
     // Try to find JSON block in markdown code blocks
@@ -100,22 +106,68 @@ fn parse_llm_response(response: &str) -> Option<LlmAction> {
             let json_start = start + 7; // Skip "```json"
             let json_str = &response[json_start..start + end].trim();
             if let Ok(action) = serde_json::from_str::<LlmAction>(json_str) {
-                return Some(action);
+                return vec![action];
             }
         }
     }
 
-    // Try to find JSON object anywhere in response
-    if let Some(start) = response.find('{') {
-        if let Some(end) = response.rfind('}') {
-            let json_str = &response[start..=end];
+    // Try to find multiple JSON objects in the response
+    let mut search_start = 0;
+    while let Some(start) = response[search_start..].find('{') {
+        let abs_start = search_start + start;
+        // Find matching closing brace
+        let mut depth = 0;
+        let mut end_pos = None;
+        for (i, c) in response[abs_start..].char_indices() {
+            match c {
+                '{' => depth += 1,
+                '}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        end_pos = Some(abs_start + i);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if let Some(end) = end_pos {
+            let json_str = &response[abs_start..=end];
             if let Ok(action) = serde_json::from_str::<LlmAction>(json_str) {
-                return Some(action);
+                actions.push(action);
             }
+            search_start = end + 1;
+        } else {
+            break;
         }
     }
 
-    None
+    actions
+}
+
+/// Extract a readable message from the LLM response, cleaning up raw JSON
+fn extract_readable_message(response: &str, actions: &[LlmAction]) -> String {
+    // If we have actions with messages, combine them
+    if !actions.is_empty() {
+        let messages: Vec<&str> = actions
+            .iter()
+            .filter(|a| !a.message.is_empty())
+            .map(|a| a.message.as_str())
+            .collect();
+
+        if !messages.is_empty() {
+            return messages.join(" ");
+        }
+    }
+
+    // If response looks like raw JSON, provide a generic message
+    let trimmed = response.trim();
+    if trimmed.starts_with('{') || trimmed.contains("\"action\"") {
+        return "Processing your request...".to_string();
+    }
+
+    response.to_string()
 }
 
 /// Execute an action based on LLM response
@@ -126,15 +178,30 @@ async fn execute_action(
     action: &LlmAction,
 ) -> Result<ActionTaken> {
     match action.action.as_str() {
-        "create_card" => {
-            let column_name = action.params["column"].as_str().unwrap_or("");
-            let title = action.params["title"].as_str().unwrap_or("");
-            let body = action.params["body"].as_str();
+        "create_card" | "createcard" => {
+            // Accept alternative param names
+            let column_name = action.params["column"]
+                .as_str()
+                .or_else(|| action.params["column_name"].as_str())
+                .or_else(|| action.params["in"].as_str())
+                .unwrap_or("");
+            let title = action.params["title"]
+                .as_str()
+                .or_else(|| action.params["name"].as_str())
+                .or_else(|| action.params["card_title"].as_str())
+                .unwrap_or("");
+            let body = action.params["body"]
+                .as_str()
+                .or_else(|| action.params["description"].as_str())
+                .or_else(|| action.params["content"].as_str());
 
             if column_name.is_empty() || title.is_empty() {
                 return Ok(ActionTaken {
                     action: "create_card".to_string(),
-                    description: "Missing column or title".to_string(),
+                    description: format!(
+                        "Missing column or title. Received params: {:?}",
+                        action.params
+                    ),
                     success: false,
                 });
             }
@@ -175,14 +242,28 @@ async fn execute_action(
             }
         }
 
-        "move_card" => {
-            let card_title = action.params["card_title"].as_str().unwrap_or("");
-            let target_column = action.params["target_column"].as_str().unwrap_or("");
+        "move_card" | "movecard" => {
+            // Accept alternative param names the LLM might use
+            let card_title = action.params["card_title"]
+                .as_str()
+                .or_else(|| action.params["card"].as_str())
+                .or_else(|| action.params["title"].as_str())
+                .or_else(|| action.params["name"].as_str())
+                .unwrap_or("");
+            let target_column = action.params["target_column"]
+                .as_str()
+                .or_else(|| action.params["column"].as_str())
+                .or_else(|| action.params["to"].as_str())
+                .or_else(|| action.params["destination"].as_str())
+                .unwrap_or("");
 
             if card_title.is_empty() || target_column.is_empty() {
                 return Ok(ActionTaken {
                     action: "move_card".to_string(),
-                    description: "Missing card_title or target_column".to_string(),
+                    description: format!(
+                        "Missing card_title or target_column. Received params: {:?}",
+                        action.params
+                    ),
                     success: false,
                 });
             }
@@ -229,14 +310,22 @@ async fn execute_action(
             }
         }
 
-        "create_tag" => {
-            let name = action.params["name"].as_str().unwrap_or("");
-            let color = action.params["color"].as_str().unwrap_or("#6c757d");
+        "create_tag" | "createtag" => {
+            // Accept alternative param names
+            let name = action.params["name"]
+                .as_str()
+                .or_else(|| action.params["tag_name"].as_str())
+                .or_else(|| action.params["tag"].as_str())
+                .unwrap_or("");
+            let color = action.params["color"]
+                .as_str()
+                .or_else(|| action.params["hex_color"].as_str())
+                .unwrap_or("#6c757d");
 
             if name.is_empty() {
                 return Ok(ActionTaken {
                     action: "create_tag".to_string(),
-                    description: "Missing tag name".to_string(),
+                    description: format!("Missing tag name. Received params: {:?}", action.params),
                     success: false,
                 });
             }
@@ -250,14 +339,26 @@ async fn execute_action(
             })
         }
 
-        "add_tag" => {
-            let card_title = action.params["card_title"].as_str().unwrap_or("");
-            let tag_name = action.params["tag_name"].as_str().unwrap_or("");
+        "add_tag" | "addtag" => {
+            // Accept alternative param names
+            let card_title = action.params["card_title"]
+                .as_str()
+                .or_else(|| action.params["card"].as_str())
+                .or_else(|| action.params["title"].as_str())
+                .unwrap_or("");
+            let tag_name = action.params["tag_name"]
+                .as_str()
+                .or_else(|| action.params["tag"].as_str())
+                .or_else(|| action.params["name"].as_str())
+                .unwrap_or("");
 
             if card_title.is_empty() || tag_name.is_empty() {
                 return Ok(ActionTaken {
                     action: "add_tag".to_string(),
-                    description: "Missing card_title or tag_name".to_string(),
+                    description: format!(
+                        "Missing card_title or tag_name. Received params: {:?}",
+                        action.params
+                    ),
                     success: false,
                 });
             }
@@ -305,11 +406,54 @@ async fn execute_action(
             }
         }
 
-        "list_cards" | "no_action" => Ok(ActionTaken {
-            action: action.action.clone(),
-            description: "No modification made".to_string(),
-            success: true,
-        }),
+        "delete_column" | "deletecolumn" => {
+            // Accept alternative param names
+            let column_name = action.params["column"]
+                .as_str()
+                .or_else(|| action.params["column_name"].as_str())
+                .or_else(|| action.params["name"].as_str())
+                .unwrap_or("");
+
+            if column_name.is_empty() {
+                return Ok(ActionTaken {
+                    action: "delete_column".to_string(),
+                    description: format!(
+                        "Missing column name. Received params: {:?}",
+                        action.params
+                    ),
+                    success: false,
+                });
+            }
+
+            // Find column by name
+            let columns = state.columns.list_by_board(board_id).await?;
+            let column = columns
+                .iter()
+                .find(|c| c.name.to_lowercase() == column_name.to_lowercase());
+
+            if let Some(col) = column {
+                state.columns.delete(col.id).await?;
+                Ok(ActionTaken {
+                    action: "delete_column".to_string(),
+                    description: format!("Deleted column '{}'", col.name),
+                    success: true,
+                })
+            } else {
+                Ok(ActionTaken {
+                    action: "delete_column".to_string(),
+                    description: format!("Column '{}' not found", column_name),
+                    success: false,
+                })
+            }
+        }
+
+        "list_cards" | "listcards" | "list_tags" | "listtags" | "no_action" | "noaction" => {
+            Ok(ActionTaken {
+                action: action.action.clone(),
+                description: "No modification made".to_string(),
+                success: true,
+            })
+        }
 
         _ => Ok(ActionTaken {
             action: action.action.clone(),
@@ -355,21 +499,34 @@ pub async fn send_message(
     // Send to Ollama
     let llm_response = state.ollama.chat(messages).await?;
 
-    // Parse LLM response for actions
+    // Parse LLM response for actions (now handles multiple actions)
     let mut actions_taken = Vec::new();
-    let response_message;
+    let parsed_actions = parse_llm_response(&llm_response);
 
-    if let Some(action) = parse_llm_response(&llm_response) {
+    // Execute all parsed actions
+    for action in &parsed_actions {
+        // Skip no-op actions
+        let dominated_actions = [
+            "no_action",
+            "noaction",
+            "list_cards",
+            "listcards",
+            "list_tags",
+            "listtags",
+        ];
+        if dominated_actions.contains(&action.action.as_str()) {
+            continue;
+        }
+
         // Only execute if user can edit
-        if role.can_edit() && action.action != "no_action" && action.action != "list_cards" {
-            let action_result = execute_action(&state, board_id, auth.user.id, &action).await?;
+        if role.can_edit() {
+            let action_result = execute_action(&state, board_id, auth.user.id, action).await?;
             actions_taken.push(action_result);
         }
-        response_message = action.message;
-    } else {
-        // LLM didn't return valid JSON, just use the raw response
-        response_message = llm_response;
     }
+
+    // Extract a readable message from the response
+    let response_message = extract_readable_message(&llm_response, &parsed_actions);
 
     // Persist the chat message
     let actions_json = if actions_taken.is_empty() {

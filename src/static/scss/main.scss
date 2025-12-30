@@ -1,6 +1,9 @@
 // Personal Operating System - Main Stylesheet
 // This file imports all SASS partials using the modern @use syntax
 
+// Theme (CSS custom properties for dark/light mode)
+@use "theme";
+
 // Load all partials (each partial imports its own dependencies)
 @use "base";
 @use "components";

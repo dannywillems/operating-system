@@ -68,9 +68,25 @@
         <div class="kanban-column-header d-flex justify-content-between align-items-center">
             <span>{{ column.name }}</span>
             {% if board.role == "owner" || board.role == "editor" %}
-            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addCardModal{{ column.id }}">
-                <i class="bi bi-plus"></i>
-            </button>
+            <div class="d-flex gap-1">
+                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addCardModal{{ column.id }}" title="Add card">
+                    <i class="bi bi-plus"></i>
+                </button>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown" title="Column options">
+                        <i class="bi bi-three-dots-vertical"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <form method="post" action="/columns/{{ column.id }}/delete" onsubmit="return confirm('Delete column \'{{ column.name }}\' and all its cards?');">
+                                <button type="submit" class="dropdown-item text-danger">
+                                    <i class="bi bi-trash"></i> Delete Column
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+            </div>
             {% endif %}
         </div>
         <div class="kanban-cards">

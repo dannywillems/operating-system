@@ -630,6 +630,29 @@ pub async fn delete_tag_submit(
     Ok(Redirect::to(&format!("/boards/{}/settings", board_id)).into_response())
 }
 
+pub async fn delete_column_submit(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path(column_id): Path<Uuid>,
+) -> Result<Response> {
+    let column = state.columns.get_by_id(column_id).await?;
+    let board_id = column.board_id;
+
+    let role = state
+        .boards
+        .get_user_role(board_id, auth.user.id)
+        .await?
+        .ok_or(AppError::Forbidden)?;
+
+    if !role.can_edit() {
+        return Err(AppError::Forbidden);
+    }
+
+    state.columns.delete(column_id).await?;
+
+    Ok(Redirect::to(&format!("/boards/{}", board_id)).into_response())
+}
+
 pub async fn add_tag_to_card_submit(
     State(state): State<AppState>,
     auth: AuthUser,

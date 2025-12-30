@@ -13,7 +13,7 @@
 
   // Hide scrollbar but keep functionality
   scrollbar-width: thin;
-  scrollbar-color: $color-gray-400 transparent;
+  scrollbar-color: var(--border-color) transparent;
 
   &::-webkit-scrollbar {
     height: 8px;
@@ -24,7 +24,7 @@
   }
 
   &::-webkit-scrollbar-thumb {
-    background-color: $color-gray-400;
+    background-color: var(--border-color);
     border-radius: 4px;
   }
 }
@@ -32,7 +32,7 @@
 .kanban-column {
   min-width: $kanban-column-width;
   max-width: $kanban-column-width;
-  background: $kanban-column-bg;
+  background: var(--kanban-column-bg);
   border-radius: $border-radius-md;
   padding: $spacing-md;
   flex-shrink: 0;
@@ -52,7 +52,7 @@
   font-weight: 600;
   margin-bottom: $spacing-md;
   padding-bottom: $spacing-sm;
-  border-bottom: 1px solid $color-gray-300;
+  border-bottom: 1px solid var(--border-color);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -66,7 +66,7 @@
 
   &__count {
     font-size: 0.875rem;
-    color: $color-gray-600;
+    color: var(--text-secondary);
     margin-left: $spacing-sm;
   }
 }
@@ -79,15 +79,17 @@
 }
 
 .kanban-card {
-  background: $kanban-card-bg;
-  border: 1px solid $kanban-card-border;
+  background: var(--kanban-card-bg);
+  border: 1px solid var(--border-color);
   border-radius: $border-radius-sm;
   padding: $spacing-md;
   cursor: pointer;
-  transition: box-shadow 0.15s ease-in-out, transform 0.1s ease-in-out;
+  transition:
+    box-shadow 0.15s ease-in-out,
+    transform 0.1s ease-in-out;
 
   &:hover {
-    box-shadow: $shadow-md;
+    box-shadow: var(--shadow-md);
   }
 
   &:active {
@@ -97,7 +99,7 @@
   // Card states
   &--dragging {
     opacity: 0.8;
-    box-shadow: $shadow-lg;
+    box-shadow: var(--shadow-lg);
     transform: rotate(2deg);
   }
 
@@ -113,7 +115,7 @@
 
   &__body {
     font-size: 0.875rem;
-    color: $color-gray-600;
+    color: var(--text-secondary);
     margin-top: $spacing-xs;
   }
 
@@ -127,7 +129,7 @@
   &__meta {
     margin-top: $spacing-sm;
     font-size: 0.75rem;
-    color: $color-gray-500;
+    color: var(--text-muted);
     display: flex;
     align-items: center;
     gap: $spacing-sm;
@@ -136,13 +138,15 @@
 
 // Add card button placeholder
 .kanban-add-card {
-  border: 2px dashed $color-gray-300;
+  border: 2px dashed var(--border-color);
   border-radius: $border-radius-sm;
   padding: $spacing-md;
   text-align: center;
-  color: $color-gray-500;
+  color: var(--text-muted);
   cursor: pointer;
-  transition: border-color 0.15s ease-in-out, color 0.15s ease-in-out;
+  transition:
+    border-color 0.15s ease-in-out,
+    color 0.15s ease-in-out;
 
   &:hover {
     border-color: $color-primary;

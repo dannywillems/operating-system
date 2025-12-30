@@ -1,0 +1,254 @@
+// Theme CSS Custom Properties
+// Light mode is default, dark mode is activated via data-theme="dark"
+
+:root {
+  // Background colors
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8f9fa;
+  --bg-tertiary: #e9ecef;
+  --navbar-bg: #212529;
+
+  // Text colors
+  --text-primary: #212529;
+  --text-secondary: #6c757d;
+  --text-muted: #adb5bd;
+
+  // Border colors
+  --border-color: #dee2e6;
+  --border-color-light: #e9ecef;
+
+  // Component specific
+  --card-bg: #ffffff;
+  --card-border: #dee2e6;
+  --input-bg: #ffffff;
+  --input-border: #ced4da;
+
+  // Kanban
+  --kanban-column-bg: #f8f9fa;
+  --kanban-card-bg: #ffffff;
+
+  // Chat
+  --chat-bg: #ffffff;
+  --chat-messages-bg: #f8f9fa;
+  --chat-user-bg: #0d6efd;
+  --chat-assistant-bg: #ffffff;
+
+  // Shadows
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] {
+  // Background colors
+  --bg-primary: #1a1d21;
+  --bg-secondary: #212529;
+  --bg-tertiary: #2c3034;
+  --navbar-bg: #0d1117;
+
+  // Text colors
+  --text-primary: #e9ecef;
+  --text-secondary: #adb5bd;
+  --text-muted: #8b949e;
+
+  // Border colors
+  --border-color: #5c636a;
+  --border-color-light: #495057;
+
+  // Component specific
+  --card-bg: #212529;
+  --card-border: #6c757d;
+  --input-bg: #2c3034;
+  --input-border: #5c636a;
+
+  // Kanban
+  --kanban-column-bg: #212529;
+  --kanban-card-bg: #2c3034;
+
+  // Chat
+  --chat-bg: #1a1d21;
+  --chat-messages-bg: #212529;
+  --chat-user-bg: #0d6efd;
+  --chat-assistant-bg: #2c3034;
+
+  // Shadows (more subtle in dark mode)
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 4px 6px rgba(0, 0, 0, 0.4);
+}
+
+// Base styles using theme variables
+body {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+// Headings
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--text-primary);
+}
+
+// Paragraphs and text
+p,
+strong,
+em,
+small {
+  color: var(--text-primary);
+}
+
+a:not(.btn):not(.nav-link):not(.navbar-brand) {
+  color: #0d6efd;
+}
+
+// Cards
+.card {
+  background-color: var(--card-bg);
+  border-color: var(--card-border);
+  color: var(--text-primary);
+}
+
+.card-body {
+  color: var(--text-primary);
+
+  p,
+  strong,
+  em,
+  small,
+  label,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    color: inherit;
+  }
+}
+
+// Form inputs
+.form-control,
+.form-select {
+  background-color: var(--input-bg);
+  border-color: var(--input-border);
+  color: var(--text-primary);
+
+  &:focus {
+    background-color: var(--input-bg);
+    color: var(--text-primary);
+  }
+
+  &::placeholder {
+    color: var(--text-muted);
+    opacity: 1;
+  }
+}
+
+// Text utilities
+.text-muted {
+  color: var(--text-secondary) !important;
+}
+
+// Modals
+.modal-content {
+  background-color: var(--bg-primary);
+  border-color: var(--border-color);
+}
+
+// Dropdowns
+.dropdown-menu {
+  background-color: var(--bg-primary);
+  border-color: var(--border-color);
+}
+
+.dropdown-item {
+  color: var(--text-primary);
+
+  &:hover,
+  &:focus {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+  }
+}
+
+// Theme toggle button
+.theme-toggle {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  font-size: 1.25rem;
+  line-height: 1;
+  transition: color 0.2s ease;
+
+  &:hover {
+    color: rgba(255, 255, 255, 1);
+  }
+}
+
+// Navbar theming
+.navbar {
+  background-color: var(--navbar-bg) !important;
+  border-bottom: 1px solid var(--border-color);
+}
+
+// Card headers
+.card-header {
+  background-color: var(--bg-tertiary);
+  border-bottom-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+// Form labels
+.form-label {
+  color: var(--text-primary);
+}
+
+// Horizontal rules
+hr {
+  border-color: var(--border-color);
+  opacity: 0.5;
+}
+
+// Outline buttons
+.btn-outline-secondary {
+  color: var(--text-secondary);
+  border-color: var(--border-color);
+
+  &:hover {
+    background-color: var(--bg-tertiary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+  }
+}
+
+.btn-outline-primary {
+  color: var(--text-primary);
+
+  &:hover {
+    color: #fff;
+  }
+}
+
+// Tables
+.table {
+  color: var(--text-primary);
+
+  th,
+  td {
+    border-color: var(--border-color);
+  }
+}
+
+// List groups
+.list-group-item {
+  background-color: var(--card-bg);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}

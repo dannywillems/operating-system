@@ -118,6 +118,10 @@ pub fn create_router(state: AppState) -> Router {
             post(handlers::web::create_column_submit),
         )
         .route(
+            "/columns/{column_id}/delete",
+            post(handlers::web::delete_column_submit),
+        )
+        .route(
             "/boards/{board_id}/cards/new",
             post(handlers::web::create_card_submit),
         )

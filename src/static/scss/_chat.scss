@@ -8,8 +8,8 @@
   left: 0;
   right: 0;
   z-index: 1000;
-  background: $color-white;
-  border-top: 1px solid $color-gray-300;
+  background: var(--chat-bg);
+  border-top: 1px solid var(--border-color);
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
 }
 
@@ -28,10 +28,12 @@
 
 .chat-input {
   flex: 1;
-  border: 1px solid $color-gray-300;
+  border: 1px solid var(--input-border);
   border-radius: $border-radius-md;
   padding: $spacing-sm $spacing-md;
   font-size: 0.875rem;
+  background: var(--input-bg);
+  color: var(--text-primary);
 
   &:focus {
     outline: none;
@@ -62,12 +64,12 @@
 .chat-toggle-btn {
   background: none;
   border: none;
-  color: $color-gray-600;
+  color: var(--text-secondary);
   cursor: pointer;
   padding: $spacing-xs;
 
   &:hover {
-    color: $color-gray-800;
+    color: var(--text-primary);
   }
 }
 
@@ -75,7 +77,7 @@
   max-height: 300px;
   overflow-y: auto;
   padding: $spacing-md $spacing-lg;
-  background: $color-gray-100;
+  background: var(--chat-messages-bg);
   display: none;
 
   &.expanded {
@@ -90,14 +92,15 @@
   max-width: 80%;
 
   &--user {
-    background: $color-primary;
+    background: var(--chat-user-bg);
     color: $color-white;
     margin-left: auto;
   }
 
   &--assistant {
-    background: $color-white;
-    border: 1px solid $color-gray-300;
+    background: var(--chat-assistant-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
   }
 
   &--error {
@@ -112,7 +115,7 @@
   line-height: 1.5;
 
   code {
-    background: $color-gray-200;
+    background: var(--bg-tertiary);
     padding: 0.125rem 0.25rem;
     border-radius: 3px;
     font-size: 0.8rem;
@@ -136,7 +139,7 @@
 .chat-message-actions {
   margin-top: $spacing-xs;
   font-size: 0.75rem;
-  color: $color-gray-600;
+  color: var(--text-secondary);
 
   .action-success {
     color: $color-success;
@@ -151,7 +154,7 @@
   display: flex;
   align-items: center;
   gap: $spacing-sm;
-  color: $color-gray-600;
+  color: var(--text-secondary);
   font-size: 0.875rem;
   padding: $spacing-sm $spacing-md;
 }
@@ -159,7 +162,7 @@
 .chat-loading-spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid $color-gray-300;
+  border: 2px solid var(--border-color);
   border-top-color: $color-primary;
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
