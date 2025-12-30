@@ -1,0 +1,151 @@
+// Kanban board specific styles
+@use "variables" as *;
+
+.kanban-board {
+  display: flex;
+  gap: $spacing-lg;
+  overflow-x: auto;
+  padding-bottom: $spacing-lg;
+
+  // Smooth scrolling
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+
+  // Hide scrollbar but keep functionality
+  scrollbar-width: thin;
+  scrollbar-color: $color-gray-400 transparent;
+
+  &::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: $color-gray-400;
+    border-radius: 4px;
+  }
+}
+
+.kanban-column {
+  min-width: $kanban-column-width;
+  max-width: $kanban-column-width;
+  background: $kanban-column-bg;
+  border-radius: $border-radius-md;
+  padding: $spacing-md;
+  flex-shrink: 0;
+
+  // Column states
+  &--dragging {
+    opacity: 0.5;
+  }
+
+  &--drop-target {
+    outline: 2px dashed $color-primary;
+    outline-offset: -2px;
+  }
+}
+
+.kanban-column-header {
+  font-weight: 600;
+  margin-bottom: $spacing-md;
+  padding-bottom: $spacing-sm;
+  border-bottom: 1px solid $color-gray-300;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  &__title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__count {
+    font-size: 0.875rem;
+    color: $color-gray-600;
+    margin-left: $spacing-sm;
+  }
+}
+
+.kanban-cards {
+  min-height: 100px;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.kanban-card {
+  background: $kanban-card-bg;
+  border: 1px solid $kanban-card-border;
+  border-radius: $border-radius-sm;
+  padding: $spacing-md;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease-in-out, transform 0.1s ease-in-out;
+
+  &:hover {
+    box-shadow: $shadow-md;
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  // Card states
+  &--dragging {
+    opacity: 0.8;
+    box-shadow: $shadow-lg;
+    transform: rotate(2deg);
+  }
+
+  &--drop-preview {
+    opacity: 0.4;
+    border-style: dashed;
+  }
+
+  &__title {
+    font-weight: 600;
+    margin-bottom: $spacing-xs;
+  }
+
+  &__body {
+    font-size: 0.875rem;
+    color: $color-gray-600;
+    margin-top: $spacing-xs;
+  }
+
+  &__tags {
+    margin-top: $spacing-sm;
+    display: flex;
+    flex-wrap: wrap;
+    gap: $spacing-xs;
+  }
+
+  &__meta {
+    margin-top: $spacing-sm;
+    font-size: 0.75rem;
+    color: $color-gray-500;
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+  }
+}
+
+// Add card button placeholder
+.kanban-add-card {
+  border: 2px dashed $color-gray-300;
+  border-radius: $border-radius-sm;
+  padding: $spacing-md;
+  text-align: center;
+  color: $color-gray-500;
+  cursor: pointer;
+  transition: border-color 0.15s ease-in-out, color 0.15s ease-in-out;
+
+  &:hover {
+    border-color: $color-primary;
+    color: $color-primary;
+  }
+}

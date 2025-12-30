@@ -115,3 +115,13 @@ docker-run:
 .PHONY: docker-lint
 docker-lint:
 	docker run --rm -i -v $(PWD)/.hadolint.yaml:/.hadolint.yaml hadolint/hadolint < Dockerfile
+
+## build-sass: Compile SASS to CSS
+.PHONY: build-sass
+build-sass:
+	sass src/static/scss/main.scss src/static/css/main.css --style compressed --no-source-map
+
+## watch-sass: Watch SASS files and recompile on changes
+.PHONY: watch-sass
+watch-sass:
+	sass --watch src/static/scss/main.scss:src/static/css/main.css --style expanded

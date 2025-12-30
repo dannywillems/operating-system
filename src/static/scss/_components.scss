@@ -1,0 +1,66 @@
+// Reusable components
+@use "variables" as *;
+
+// Tag badges
+.tag-badge {
+  font-size: 0.75rem;
+  padding: $spacing-xs $spacing-sm;
+  margin-right: $spacing-xs;
+  border-radius: $border-radius-sm;
+  display: inline-block;
+  line-height: 1;
+}
+
+// Card components (generic, not kanban-specific)
+.card-interactive {
+  cursor: pointer;
+  transition: box-shadow 0.15s ease-in-out;
+
+  &:hover {
+    box-shadow: $shadow-md;
+  }
+
+  &:active {
+    box-shadow: $shadow-sm;
+  }
+}
+
+// Empty state
+.empty-state {
+  text-align: center;
+  padding: $spacing-xl * 2;
+  color: $color-gray-600;
+
+  &__icon {
+    font-size: 3rem;
+    margin-bottom: $spacing-lg;
+    opacity: 0.5;
+  }
+
+  &__title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: $spacing-sm;
+  }
+
+  &__description {
+    margin-bottom: $spacing-lg;
+  }
+}
+
+// Loading spinner
+.loading-spinner {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid $color-gray-300;
+  border-top-color: $color-primary;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

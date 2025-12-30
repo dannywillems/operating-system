@@ -116,5 +116,11 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
 
+      - name: Install Sass
+        run: npm install -g sass
+
+      - name: Build SASS
+        run: make build-sass
+
       - name: Build release
         run: make build

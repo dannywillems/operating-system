@@ -1,0 +1,7 @@
+// Personal Operating System - Main Stylesheet
+// This file imports all SASS partials using the modern @use syntax
+
+// Load all partials (each partial imports its own dependencies)
+@use "base";
+@use "components";
+@use "kanban";
