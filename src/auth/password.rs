@@ -1,8 +1,9 @@
 use argon2::{
-    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
+    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Argon2,
 };
 use rand::Rng;
+use rand_core::OsRng;
 use sha2::{Digest, Sha256};
 
 use crate::error::{AppError, Result};
@@ -27,8 +28,8 @@ pub fn verify_password(password: &str, hash: &str) -> Result<bool> {
 }
 
 pub fn generate_token() -> String {
-    let mut rng = rand::thread_rng();
-    let bytes: [u8; 32] = rng.gen();
+    let mut rng = rand::rng();
+    let bytes: [u8; 32] = rng.random();
     hex::encode(bytes)
 }
 

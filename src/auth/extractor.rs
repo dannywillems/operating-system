@@ -14,7 +14,6 @@ pub struct AuthUser {
     pub session_token: Option<String>,
 }
 
-#[axum::async_trait]
 impl<S> FromRequestParts<S> for AuthUser
 where
     AppState: FromRef<S>,
@@ -65,7 +64,6 @@ where
 
 pub struct OptionalAuthUser(pub Option<AuthUser>);
 
-#[axum::async_trait]
 impl<S> FromRequestParts<S> for OptionalAuthUser
 where
     AppState: FromRef<S>,
