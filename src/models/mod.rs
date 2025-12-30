@@ -1,5 +1,6 @@
 pub mod board;
 pub mod card;
+pub mod chat;
 pub mod column;
 pub mod session;
 pub mod tag;
@@ -8,6 +9,7 @@ pub mod user;
 
 pub use board::*;
 pub use card::*;
+pub use chat::*;
 pub use column::*;
 pub use session::*;
 pub use tag::*;

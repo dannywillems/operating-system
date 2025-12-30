@@ -3,6 +3,7 @@ pub mod error;
 pub mod handlers;
 pub mod models;
 pub mod repo;
+pub mod services;
 pub mod state;
 
 use axum::{
@@ -82,6 +83,11 @@ pub fn create_router(state: AppState) -> Router {
         .route(
             "/cards/{card_id}/tags/{tag_id}",
             delete(handlers::tags::remove_tag_from_card),
+        )
+        // Chat routes
+        .route(
+            "/boards/{board_id}/chat",
+            post(handlers::chat::send_message),
         );
 
     let web_routes = Router::new()

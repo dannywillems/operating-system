@@ -35,6 +35,9 @@ uuid = { version = "1", features = ["v4", "serde"] }
 # Templating
 askama = "0.15"
 
+# HTTP client
+reqwest = { version = "0.12", features = ["json"] }
+
 # Utilities
 anyhow = "1"
 dotenvy = "0.15"
@@ -45,7 +48,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 [dev-dependencies]
 axum-test = "18"
 cookie = "0.18"
-reqwest = { version = "0.11", features = ["json", "cookies"] }
+reqwest = { version = "0.12", features = ["json", "cookies"] }
 sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }
 tempfile = "3"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }

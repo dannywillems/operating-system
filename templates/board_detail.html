@@ -173,7 +173,7 @@
     </div>
 </div>
 
-<div class="mt-4">
+<div class="mt-4 mb-5">
     <h5>Tags</h5>
     {% if tags.is_empty() %}
     <p class="text-muted">No tags yet. <a href="/boards/{{ board.id }}/settings">Create tags in settings</a>.</p>
@@ -186,4 +186,24 @@
     </div>
     {% endif %}
 </div>
+
+<!-- Chat Interface -->
+<div id="chat-container" class="chat-container" data-board-id="{{ board.id }}">
+    <div id="chat-messages" class="chat-messages"></div>
+    <div class="chat-bar">
+        <button type="button" id="chat-toggle" class="chat-toggle-btn" title="Toggle chat history">
+            <i class="bi bi-chevron-up"></i>
+        </button>
+        <form id="chat-form" class="chat-input-group">
+            <input type="text" id="chat-input" class="chat-input" placeholder="Ask me to create cards, move tasks, add tags..." autocomplete="off">
+            <button type="submit" class="chat-send-btn">
+                <i class="bi bi-send"></i> Send
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/chat.js"></script>
 {% endblock %}

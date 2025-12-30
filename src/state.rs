@@ -6,6 +6,7 @@ use crate::repo::{
     session::SessionRepository, tag::TagRepository, token::ApiTokenRepository,
     user::UserRepository,
 };
+use crate::services::OllamaClient;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -16,6 +17,7 @@ pub struct AppState {
     pub columns: ColumnRepository,
     pub cards: CardRepository,
     pub tags: TagRepository,
+    pub ollama: OllamaClient,
     pub pool: Arc<SqlitePool>,
 }
 
@@ -30,6 +32,7 @@ impl AppState {
             columns: ColumnRepository::new(pool.clone()),
             cards: CardRepository::new(pool.clone()),
             tags: TagRepository::new(pool.clone()),
+            ollama: OllamaClient::from_env(),
             pool,
         }
     }
