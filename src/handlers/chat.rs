@@ -157,37 +157,40 @@ Respond with JSON:
 1. create_board - Create a new board
    {"action": "create_board", "params": {"name": "board name", "description": "optional description"}, "message": "Created board..."}
 
-2. create_card - Create a new card (specify board)
+2. create_column - Create a new column (specify board)
+   {"action": "create_column", "params": {"board": "board name", "name": "column name"}, "message": "Created column..."}
+
+3. create_card - Create a new card (specify board and column)
    {"action": "create_card", "params": {"board": "board name", "column": "column_name", "title": "card title", "body": "optional description"}, "message": "Created card..."}
 
-3. move_card - Move a card to another column (within same board)
+4. move_card - Move a card to another column (within same board)
    {"action": "move_card", "params": {"board": "board name", "card_title": "card to move", "target_column": "destination column"}, "message": "Moved card..."}
 
-4. move_card_cross_board - Move a card between boards
+5. move_card_cross_board - Move a card between boards
    {"action": "move_card_cross_board", "params": {"from_board": "source board", "to_board": "target board", "card": "card title", "column": "destination column"}, "message": "Moved card..."}
 
-5. create_tag - Create a new tag (specify board)
+6. create_tag - Create a new tag (specify board)
    {"action": "create_tag", "params": {"board": "board name", "name": "tag name", "color": "#hex_color"}, "message": "Created tag..."}
 
-6. add_tag - Add a tag to a card (specify board)
+7. add_tag - Add a tag to a card (specify board)
    {"action": "add_tag", "params": {"board": "board name", "card_title": "card title", "tag_name": "tag to add"}, "message": "Added tag..."}
 
-7. list_cards - List cards from a board
+8. list_cards - List cards from a board
    {"action": "list_cards", "params": {"board": "board name", "column": "optional column name"}, "message": "Here are the cards..."}
 
-8. list_tags - List all tags on a board
+9. list_tags - List all tags on a board
    {"action": "list_tags", "params": {"board": "board name"}, "message": "Here are the tags..."}
 
-9. delete_column - Delete a column (specify board)
+10. delete_column - Delete a column (specify board)
    {"action": "delete_column", "params": {"board": "board name", "column": "column name"}, "message": "Deleted column..."}
 
-10. delete_tag - Delete a tag (specify board)
+11. delete_tag - Delete a tag (specify board)
    {"action": "delete_tag", "params": {"board": "board name", "tag": "tag name"}, "message": "Deleted tag..."}
 
-11. delete_card - Delete a card (specify board)
+12. delete_card - Delete a card (specify board)
    {"action": "delete_card", "params": {"board": "board name", "card": "card title"}, "message": "Deleted card..."}
 
-12. no_action - Just respond without taking action
+13. no_action - Just respond without taking action
    {"action": "no_action", "params": {}, "message": "Your response here..."}
 "##;
 
@@ -369,6 +372,49 @@ async fn execute_action(
                     success: false,
                 })
             }
+        }
+
+        ChatAction::CreateColumn => {
+            // Accept alternative param names
+            let column_name = action.params["name"]
+                .as_str()
+                .or_else(|| action.params["column"].as_str())
+                .or_else(|| action.params["column_name"].as_str())
+                .unwrap_or("");
+
+            if column_name.is_empty() {
+                return Ok(ActionTaken {
+                    action: "create_column".to_string(),
+                    description: format!(
+                        "Missing column name. Received params: {:?}",
+                        action.params
+                    ),
+                    success: false,
+                });
+            }
+
+            // Check if column already exists
+            let columns = state.columns.list_by_board(board_id).await?;
+            let exists = columns
+                .iter()
+                .any(|c| c.name.to_lowercase() == column_name.to_lowercase());
+
+            if exists {
+                return Ok(ActionTaken {
+                    action: "create_column".to_string(),
+                    description: format!("Column '{}' already exists", column_name),
+                    success: false,
+                });
+            }
+
+            // Create the column
+            let column = state.columns.create(board_id, column_name, None).await?;
+
+            Ok(ActionTaken {
+                action: "create_column".to_string(),
+                description: format!("Created column '{}'", column.name),
+                success: true,
+            })
         }
 
         ChatAction::MoveCard => {
