@@ -5,7 +5,8 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Tag {
     pub id: Uuid,
-    pub board_id: Uuid,
+    pub board_id: Option<Uuid>,
+    pub owner_id: Option<Uuid>,
     pub name: String,
     pub color: String,
     pub created_at: DateTime<Utc>,
@@ -33,7 +34,8 @@ pub struct UpdateTag {
 #[derive(Debug, Serialize, Clone)]
 pub struct TagResponse {
     pub id: Uuid,
-    pub board_id: Uuid,
+    pub board_id: Option<Uuid>,
+    pub owner_id: Option<Uuid>,
     pub name: String,
     pub color: String,
     pub created_at: DateTime<Utc>,
@@ -44,9 +46,17 @@ impl From<Tag> for TagResponse {
         Self {
             id: tag.id,
             board_id: tag.board_id,
+            owner_id: tag.owner_id,
             name: tag.name,
             color: tag.color,
             created_at: tag.created_at,
         }
     }
+}
+
+/// Request to create a global (user-scoped) tag
+#[derive(Debug, Deserialize)]
+pub struct CreateGlobalTag {
+    pub name: String,
+    pub color: Option<String>,
 }

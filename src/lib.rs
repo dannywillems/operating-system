@@ -103,6 +103,52 @@ pub fn create_router(state: AppState) -> Router {
         .route(
             "/chat/history",
             delete(handlers::chat::clear_global_history),
+        )
+        // Inbox routes (standalone cards)
+        .route("/cards", get(handlers::inbox::list_cards))
+        .route("/cards", post(handlers::inbox::create_card))
+        .route("/inbox/cards/{card_id}", get(handlers::inbox::get_card))
+        .route("/inbox/cards/{card_id}", put(handlers::inbox::update_card))
+        .route(
+            "/inbox/cards/{card_id}",
+            delete(handlers::inbox::delete_card),
+        )
+        .route(
+            "/inbox/cards/{card_id}/status",
+            put(handlers::inbox::update_card_status),
+        )
+        // Card-board assignment routes
+        .route(
+            "/cards/{card_id}/boards/{board_id}",
+            post(handlers::inbox::assign_card_to_board),
+        )
+        .route(
+            "/cards/{card_id}/boards/{board_id}",
+            delete(handlers::inbox::remove_card_from_board),
+        )
+        .route(
+            "/cards/{card_id}/boards/{board_id}",
+            put(handlers::inbox::move_card_in_board),
+        )
+        // Global tags routes
+        .route("/tags", get(handlers::inbox::list_global_tags))
+        .route("/tags", post(handlers::inbox::create_global_tag))
+        // Comment routes
+        .route(
+            "/cards/{card_id}/comments",
+            get(handlers::comments::list_comments),
+        )
+        .route(
+            "/cards/{card_id}/comments",
+            post(handlers::comments::create_comment),
+        )
+        .route(
+            "/comments/{comment_id}",
+            put(handlers::comments::update_comment),
+        )
+        .route(
+            "/comments/{comment_id}",
+            delete(handlers::comments::delete_comment),
         );
 
     let web_routes = Router::new()
@@ -166,6 +212,26 @@ pub fn create_router(state: AppState) -> Router {
         .route(
             "/settings/chat-history/delete",
             post(handlers::web::delete_chat_history_submit),
+        )
+        // Inbox web routes
+        .route("/inbox", get(handlers::web::inbox_page))
+        .route(
+            "/inbox/cards/new",
+            post(handlers::web::create_inbox_card_submit),
+        )
+        .route(
+            "/inbox/cards/{card_id}/status",
+            post(handlers::web::update_card_status_submit),
+        )
+        // Card detail with comments
+        .route("/cards/{card_id}", get(handlers::web::card_detail))
+        .route(
+            "/cards/{card_id}/comments",
+            post(handlers::web::add_comment_submit),
+        )
+        .route(
+            "/cards/{card_id}/comments/{comment_id}/delete",
+            post(handlers::web::delete_comment_submit),
         );
 
     Router::new()

@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use crate::auth::{generate_token, hash_password, verify_password, AuthUser, OptionalAuthUser};
 use crate::error::{AppError, Result};
-use crate::models::CardVisibility;
+use crate::models::{CardStatus, CardVisibility};
 use crate::state::AppState;
 
 // Template structs
@@ -72,7 +72,56 @@ struct UserSettingsTemplate {
     llm_context: Option<String>,
 }
 
+#[derive(Template)]
+#[template(path = "inbox.html")]
+struct InboxTemplate {
+    user: String,
+    cards: Vec<InboxCardView>,
+    current_status: Option<String>,
+}
+
+#[derive(Template)]
+#[template(path = "card_detail.html")]
+struct CardDetailTemplate {
+    user: String,
+    card: CardDetailView,
+    comments: Vec<CommentView>,
+    current_user_id: String,
+}
+
 // View structs for templates
+#[allow(dead_code)]
+struct InboxCardView {
+    id: String,
+    title: String,
+    body: Option<String>,
+    status: String,
+    due_date: Option<String>,
+    boards: Vec<BoardView>,
+}
+
+#[allow(dead_code)]
+struct CardDetailView {
+    id: String,
+    title: String,
+    body: Option<String>,
+    status: String,
+    due_date: Option<String>,
+    created_at: String,
+    boards: Vec<BoardView>,
+    tags: Vec<TagView>,
+}
+
+#[allow(dead_code)]
+struct CommentView {
+    id: String,
+    user_id: String,
+    author_name: String,
+    body: String,
+    created_at: String,
+    updated_at: String,
+}
+
 #[allow(dead_code)]
 struct BoardView {
     id: String,
@@ -170,6 +219,29 @@ pub struct AddTagToCardForm {
 pub struct BoardFilterQuery {
     #[serde(default)]
     tags: Option<String>,
+}
+
+#[derive(Deserialize, Default)]
+pub struct InboxQuery {
+    #[serde(default)]
+    status: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct CreateInboxCardForm {
+    title: String,
+    body: Option<String>,
+    due_date: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct UpdateCardStatusForm {
+    status: String,
+}
+
+#[derive(Deserialize)]
+pub struct CommentForm {
+    body: String,
 }
 
 // Handlers
@@ -550,6 +622,7 @@ pub async fn create_card_submit(
             input.body.as_deref(),
             None,
             CardVisibility::Restricted,
+            CardStatus::Open,
             None,
             None,
             None,
@@ -765,4 +838,268 @@ pub async fn delete_chat_history_submit(
     state.chat_messages.delete_all_by_user(auth.user.id).await?;
 
     Ok(Redirect::to("/settings").into_response())
+}
+
+// Inbox handlers
+pub async fn inbox_page(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Query(query): Query<InboxQuery>,
+) -> Result<Response> {
+    let status = query
+        .status
+        .as_ref()
+        .and_then(|s| s.parse::<CardStatus>().ok());
+
+    let cards = state
+        .cards
+        .list_by_owner_with_status(auth.user.id, status)
+        .await?;
+
+    let mut card_views = Vec::new();
+    for card in cards {
+        // Get boards this card is assigned to
+        let boards = state.card_boards.list_boards_for_card(card.id).await?;
+        let board_views: Vec<BoardView> = boards
+            .into_iter()
+            .map(|b| BoardView {
+                id: b.id.to_string(),
+                name: b.name,
+                description: b.description,
+                role: "owner".to_string(), // Simplified for inbox view
+            })
+            .collect();
+
+        card_views.push(InboxCardView {
+            id: card.id.to_string(),
+            title: card.title,
+            body: card.body,
+            status: card.status,
+            due_date: card.due_date.map(|d| d.to_string()),
+            boards: board_views,
+        });
+    }
+
+    let template = InboxTemplate {
+        user: auth.user.name,
+        cards: card_views,
+        current_status: query.status,
+    };
+
+    Ok(Html(template.render().unwrap()).into_response())
+}
+
+pub async fn create_inbox_card_submit(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Form(input): Form<CreateInboxCardForm>,
+) -> Result<Response> {
+    use chrono::NaiveDate;
+
+    if input.title.trim().is_empty() {
+        return Err(AppError::Validation("Card title is required".to_string()));
+    }
+
+    let due_date = input.due_date.and_then(|s| {
+        if s.is_empty() {
+            None
+        } else {
+            NaiveDate::parse_from_str(&s, "%Y-%m-%d").ok()
+        }
+    });
+
+    state
+        .cards
+        .create_standalone(
+            input.title.trim(),
+            input.body.as_deref(),
+            CardVisibility::Private,
+            CardStatus::Open,
+            None,
+            None,
+            due_date,
+            auth.user.id,
+        )
+        .await?;
+
+    Ok(Redirect::to("/inbox").into_response())
+}
+
+pub async fn update_card_status_submit(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path(card_id): Path<Uuid>,
+    Form(input): Form<UpdateCardStatusForm>,
+) -> Result<Response> {
+    let card = state.cards.get_by_id(card_id).await?;
+
+    // Verify ownership
+    if card.owner_id != Some(auth.user.id) && card.created_by != auth.user.id {
+        return Err(AppError::Forbidden);
+    }
+
+    let status: CardStatus = input
+        .status
+        .parse()
+        .map_err(|_| AppError::BadRequest("Invalid status".to_string()))?;
+
+    state.cards.update_status(card_id, status).await?;
+
+    Ok(Redirect::to("/inbox").into_response())
+}
+
+/// Card detail page with comments
+pub async fn card_detail(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path(card_id): Path<Uuid>,
+) -> Result<Response> {
+    let card = state.cards.get_by_id(card_id).await?;
+
+    // Check access
+    let has_access = card.owner_id == Some(auth.user.id)
+        || card.created_by == auth.user.id
+        || {
+            let boards = state.card_boards.list_boards_for_card(card_id).await?;
+            let mut has_board_access = false;
+            for board in boards {
+                if state
+                    .boards
+                    .get_user_role(board.id, auth.user.id)
+                    .await?
+                    .is_some()
+                {
+                    has_board_access = true;
+                    break;
+                }
+            }
+            has_board_access
+        };
+
+    if !has_access {
+        return Err(AppError::Forbidden);
+    }
+
+    // Get boards for this card
+    let boards = state.card_boards.list_boards_for_card(card_id).await?;
+    let mut board_views = Vec::new();
+    for board in boards {
+        let role = state
+            .boards
+            .get_user_role(board.id, auth.user.id)
+            .await?
+            .map(|r| r.to_string())
+            .unwrap_or_else(|| "none".to_string());
+        board_views.push(BoardView {
+            id: board.id.to_string(),
+            name: board.name,
+            description: board.description,
+            role,
+        });
+    }
+
+    // Get tags for this card
+    let tags = state.tags.list_for_card(card_id).await?;
+    let tag_views: Vec<TagView> = tags
+        .into_iter()
+        .map(|t| TagView {
+            id: t.id.to_string(),
+            name: t.name,
+            color: t.color,
+        })
+        .collect();
+
+    // Get comments
+    let comments = state.comments.list_by_card(card_id).await?;
+    let comment_views: Vec<CommentView> = comments
+        .into_iter()
+        .map(|c| CommentView {
+            id: c.id.to_string(),
+            user_id: c.user_id.to_string(),
+            author_name: c.author_name,
+            body: c.body,
+            created_at: c.created_at.format("%Y-%m-%d %H:%M").to_string(),
+            updated_at: c.updated_at.format("%Y-%m-%d %H:%M").to_string(),
+        })
+        .collect();
+
+    let card_view = CardDetailView {
+        id: card.id.to_string(),
+        title: card.title,
+        body: card.body,
+        status: card.status.to_string(),
+        due_date: card.due_date.map(|d| d.format("%Y-%m-%d").to_string()),
+        created_at: card.created_at.format("%Y-%m-%d %H:%M").to_string(),
+        boards: board_views,
+        tags: tag_views,
+    };
+
+    let template = CardDetailTemplate {
+        user: auth.user.name,
+        card: card_view,
+        comments: comment_views,
+        current_user_id: auth.user.id.to_string(),
+    };
+
+    Ok(Html(template.render().unwrap()).into_response())
+}
+
+/// Add a comment to a card
+pub async fn add_comment_submit(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path(card_id): Path<Uuid>,
+    Form(input): Form<CommentForm>,
+) -> Result<Response> {
+    let card = state.cards.get_by_id(card_id).await?;
+
+    // Check edit access
+    let can_edit = card.owner_id == Some(auth.user.id)
+        || card.created_by == auth.user.id
+        || {
+            let boards = state.card_boards.list_boards_for_card(card_id).await?;
+            let mut has_edit_access = false;
+            for board in boards {
+                if let Some(role) = state.boards.get_user_role(board.id, auth.user.id).await? {
+                    if role.can_edit() {
+                        has_edit_access = true;
+                        break;
+                    }
+                }
+            }
+            has_edit_access
+        };
+
+    if !can_edit {
+        return Err(AppError::Forbidden);
+    }
+
+    if input.body.trim().is_empty() {
+        return Err(AppError::Validation("Comment body is required".to_string()));
+    }
+
+    state
+        .comments
+        .create(card_id, auth.user.id, &input.body)
+        .await?;
+
+    Ok(Redirect::to(&format!("/cards/{}", card_id)).into_response())
+}
+
+/// Delete a comment
+pub async fn delete_comment_submit(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path((card_id, comment_id)): Path<(Uuid, Uuid)>,
+) -> Result<Response> {
+    let comment = state.comments.get_by_id(comment_id).await?;
+
+    // Only the author can delete their comment
+    if comment.user_id != auth.user.id {
+        return Err(AppError::Forbidden);
+    }
+
+    state.comments.delete(comment_id).await?;
+
+    Ok(Redirect::to(&format!("/cards/{}", card_id)).into_response())
 }

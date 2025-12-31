@@ -8,8 +8,8 @@ use uuid::Uuid;
 use crate::auth::AuthUser;
 use crate::error::{AppError, Result};
 use crate::models::{
-    ActionTaken, CardVisibility, ChatAction, ChatMessageResponse, ChatResponse, LlmAction,
-    SendChatRequest,
+    ActionTaken, CardStatus, CardVisibility, ChatAction, ChatMessageResponse, ChatResponse,
+    LlmAction, SendChatRequest,
 };
 use crate::state::AppState;
 
@@ -166,37 +166,49 @@ Respond with JSON:
 4. create_card - Create a new card (specify board and column)
    {"action": "create_card", "params": {"board": "board name", "column": "column_name", "title": "card title", "body": "optional description"}, "message": "Created card..."}
 
-5. move_card - Move a card to another column (within same board)
+5. create_inbox_card - Create a standalone card in inbox (not on any board)
+   {"action": "create_inbox_card", "params": {"title": "card title", "body": "optional description", "status": "open|in_progress|done|closed"}, "message": "Created inbox card..."}
+
+6. move_card - Move a card to another column (within same board)
    {"action": "move_card", "params": {"board": "board name", "card_title": "card to move", "target_column": "destination column"}, "message": "Moved card..."}
 
-6. move_card_cross_board - Move a card between boards
+7. move_card_cross_board - Move a card between boards
    {"action": "move_card_cross_board", "params": {"from_board": "source board", "to_board": "target board", "card": "card title", "column": "destination column"}, "message": "Moved card..."}
 
-7. create_tag - Create a new tag (specify board)
+8. assign_card - Assign a card to a board (cards can be on multiple boards)
+   {"action": "assign_card", "params": {"card": "card title", "board": "board name", "column": "optional column"}, "message": "Assigned card to board..."}
+
+9. update_status - Update a card's status
+   {"action": "update_status", "params": {"card": "card title", "status": "open|in_progress|done|closed"}, "message": "Updated status..."}
+
+10. add_comment - Add a comment to a card
+   {"action": "add_comment", "params": {"card": "card title", "comment": "comment text"}, "message": "Added comment..."}
+
+11. create_tag - Create a new tag (specify board)
    {"action": "create_tag", "params": {"board": "board name", "name": "tag name", "color": "#hex_color"}, "message": "Created tag..."}
 
-8. add_tag - Add a tag to a card (specify board)
+12. add_tag - Add a tag to a card (specify board)
    {"action": "add_tag", "params": {"board": "board name", "card_title": "card title", "tag_name": "tag to add"}, "message": "Added tag..."}
 
-9. list_cards - List cards from a board
+13. list_cards - List cards from a board
    {"action": "list_cards", "params": {"board": "board name", "column": "optional column name"}, "message": "Here are the cards..."}
 
-10. list_tags - List all tags on a board
+14. list_tags - List all tags on a board
    {"action": "list_tags", "params": {"board": "board name"}, "message": "Here are the tags..."}
 
-11. delete_column - Delete a column (specify board)
+15. delete_column - Delete a column (specify board)
    {"action": "delete_column", "params": {"board": "board name", "column": "column name"}, "message": "Deleted column..."}
 
-12. delete_tag - Delete a tag (specify board)
+16. delete_tag - Delete a tag (specify board)
    {"action": "delete_tag", "params": {"board": "board name", "tag": "tag name"}, "message": "Deleted tag..."}
 
-13. delete_card - Delete a card (specify board)
+17. delete_card - Delete a card (specify board)
    {"action": "delete_card", "params": {"board": "board name", "card": "card title"}, "message": "Deleted card..."}
 
-14. web_search - Search the internet for information (use when you need current data or external knowledge)
+18. web_search - Search the internet for information (use when you need current data or external knowledge)
    {"action": "web_search", "params": {"query": "search query here"}, "message": "Let me search for that..."}
 
-15. no_action - Just respond without taking action
+19. no_action - Just respond without taking action
    {"action": "no_action", "params": {}, "message": "Your response here..."}
 "##;
 
@@ -359,6 +371,7 @@ async fn execute_action(
                         body,
                         None,
                         CardVisibility::Restricted,
+                        CardStatus::Open,
                         None,
                         None,
                         None,
@@ -728,14 +741,18 @@ async fn execute_action(
             execute_web_search(state, action).await
         }
 
-        // CreateBoard, DeleteBoard, and MoveCardCrossBoard are handled in global chat only
-        ChatAction::CreateBoard | ChatAction::DeleteBoard | ChatAction::MoveCardCrossBoard => {
-            Ok(ActionTaken {
-                action: chat_action.to_string(),
-                description: "This action is only available in global chat".to_string(),
-                success: false,
-            })
-        }
+        // These actions are handled in global chat only
+        ChatAction::CreateBoard
+        | ChatAction::DeleteBoard
+        | ChatAction::MoveCardCrossBoard
+        | ChatAction::CreateInboxCard
+        | ChatAction::AssignCard
+        | ChatAction::UpdateStatus
+        | ChatAction::AddComment => Ok(ActionTaken {
+            action: chat_action.to_string(),
+            description: "This action is only available in global chat".to_string(),
+            success: false,
+        }),
 
         ChatAction::Unknown => Ok(ActionTaken {
             action: action.action.clone(),
@@ -980,6 +997,18 @@ async fn execute_global_action(
         ChatAction::WebSearch => {
             return execute_web_search(state, action).await;
         }
+        ChatAction::CreateInboxCard => {
+            return execute_create_inbox_card(state, user_id, action).await;
+        }
+        ChatAction::AssignCard => {
+            return execute_assign_card(state, user_id, action).await;
+        }
+        ChatAction::UpdateStatus => {
+            return execute_update_status(state, user_id, action).await;
+        }
+        ChatAction::AddComment => {
+            return execute_add_comment(state, user_id, action).await;
+        }
         _ => {}
     }
 
@@ -1201,11 +1230,15 @@ async fn execute_cross_board_move(
         }
     };
 
-    // Parse visibility from string to enum
+    // Parse visibility and status from string to enum
     let visibility: CardVisibility = source_card
         .visibility
         .parse()
         .unwrap_or(CardVisibility::Restricted);
+    let status: CardStatus = source_card
+        .status
+        .parse()
+        .unwrap_or(CardStatus::Open);
 
     // Create new card in target board
     state
@@ -1216,6 +1249,7 @@ async fn execute_cross_board_move(
             source_card.body.as_deref(),
             None,
             visibility,
+            status,
             source_card.start_date,
             source_card.end_date,
             source_card.due_date,
@@ -1574,4 +1608,291 @@ pub async fn clear_global_history(
     Ok(Json(serde_json::json!({
         "deleted": deleted
     })))
+}
+
+/// Execute create_inbox_card action (creates a standalone card)
+#[instrument(skip(state), fields(user_id = %user_id))]
+async fn execute_create_inbox_card(
+    state: &AppState,
+    user_id: Uuid,
+    action: &LlmAction,
+) -> Result<ActionTaken> {
+    let title = action.params["title"]
+        .as_str()
+        .or_else(|| action.params["name"].as_str())
+        .unwrap_or("");
+
+    if title.is_empty() {
+        return Ok(ActionTaken {
+            action: "create_inbox_card".to_string(),
+            description: "Missing card title".to_string(),
+            success: false,
+        });
+    }
+
+    let body = action.params["body"]
+        .as_str()
+        .or_else(|| action.params["description"].as_str());
+
+    let status: CardStatus = action.params["status"]
+        .as_str()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(CardStatus::Open);
+
+    state
+        .cards
+        .create_standalone(
+            title,
+            body,
+            CardVisibility::Private,
+            status,
+            None,
+            None,
+            None,
+            user_id,
+        )
+        .await?;
+
+    info!(title = %title, status = %status, "Created inbox card");
+
+    Ok(ActionTaken {
+        action: "create_inbox_card".to_string(),
+        description: format!("Created inbox card '{}'", title),
+        success: true,
+    })
+}
+
+/// Execute assign_card action (assigns a card to a board)
+#[instrument(skip(state), fields(user_id = %user_id))]
+async fn execute_assign_card(
+    state: &AppState,
+    user_id: Uuid,
+    action: &LlmAction,
+) -> Result<ActionTaken> {
+    let card_title = action.params["card"]
+        .as_str()
+        .or_else(|| action.params["card_title"].as_str())
+        .unwrap_or("");
+
+    let board_name = action.params["board"]
+        .as_str()
+        .or_else(|| action.params["board_name"].as_str())
+        .unwrap_or("");
+
+    let column_name = action.params["column"]
+        .as_str()
+        .or_else(|| action.params["column_name"].as_str());
+
+    if card_title.is_empty() {
+        return Ok(ActionTaken {
+            action: "assign_card".to_string(),
+            description: "Missing card title".to_string(),
+            success: false,
+        });
+    }
+
+    if board_name.is_empty() {
+        return Ok(ActionTaken {
+            action: "assign_card".to_string(),
+            description: "Missing board name".to_string(),
+            success: false,
+        });
+    }
+
+    // Find the card
+    let cards = state.cards.list_by_owner(user_id).await?;
+    let card = cards
+        .iter()
+        .find(|c| c.title.to_lowercase() == card_title.to_lowercase());
+
+    let card = match card {
+        Some(c) => c,
+        None => {
+            return Ok(ActionTaken {
+                action: "assign_card".to_string(),
+                description: format!("Card '{}' not found in inbox", card_title),
+                success: false,
+            });
+        }
+    };
+
+    // Find the board
+    let board_result = find_board_by_name(state, user_id, board_name).await?;
+    let (board, role) = match board_result {
+        Some(br) => br,
+        None => {
+            return Ok(ActionTaken {
+                action: "assign_card".to_string(),
+                description: format!("Board '{}' not found", board_name),
+                success: false,
+            });
+        }
+    };
+
+    // Check permission
+    if !role_can_edit(&role) {
+        return Ok(ActionTaken {
+            action: "assign_card".to_string(),
+            description: format!("You don't have permission to edit board '{}'", board.name),
+            success: false,
+        });
+    }
+
+    // Find column if specified
+    let column_id = if let Some(col_name) = column_name {
+        let columns = state.columns.list_by_board(board.id).await?;
+        columns
+            .iter()
+            .find(|c| c.name.to_lowercase() == col_name.to_lowercase())
+            .map(|c| c.id)
+    } else {
+        None
+    };
+
+    // Assign the card
+    state
+        .card_boards
+        .assign_card_to_board(card.id, board.id, column_id, None)
+        .await?;
+
+    info!(card = %card.title, board = %board.name, "Assigned card to board");
+
+    Ok(ActionTaken {
+        action: "assign_card".to_string(),
+        description: format!("Assigned '{}' to board '{}'", card.title, board.name),
+        success: true,
+    })
+}
+
+/// Execute update_status action (updates card status)
+#[instrument(skip(state), fields(user_id = %user_id))]
+async fn execute_update_status(
+    state: &AppState,
+    user_id: Uuid,
+    action: &LlmAction,
+) -> Result<ActionTaken> {
+    let card_title = action.params["card"]
+        .as_str()
+        .or_else(|| action.params["card_title"].as_str())
+        .unwrap_or("");
+
+    let status_str = action.params["status"]
+        .as_str()
+        .unwrap_or("");
+
+    if card_title.is_empty() {
+        return Ok(ActionTaken {
+            action: "update_status".to_string(),
+            description: "Missing card title".to_string(),
+            success: false,
+        });
+    }
+
+    let status: CardStatus = match status_str.parse() {
+        Ok(s) => s,
+        Err(_) => {
+            return Ok(ActionTaken {
+                action: "update_status".to_string(),
+                description: format!(
+                    "Invalid status '{}'. Use: open, in_progress, done, or closed",
+                    status_str
+                ),
+                success: false,
+            });
+        }
+    };
+
+    // Find the card (search in user's owned cards first)
+    let cards = state.cards.list_by_owner(user_id).await?;
+    let card = cards
+        .iter()
+        .find(|c| c.title.to_lowercase() == card_title.to_lowercase());
+
+    let card = match card {
+        Some(c) => c,
+        None => {
+            return Ok(ActionTaken {
+                action: "update_status".to_string(),
+                description: format!("Card '{}' not found", card_title),
+                success: false,
+            });
+        }
+    };
+
+    // Update the status
+    state.cards.update_status(card.id, status).await?;
+
+    info!(card = %card.title, status = %status, "Updated card status");
+
+    Ok(ActionTaken {
+        action: "update_status".to_string(),
+        description: format!("Updated '{}' status to '{}'", card.title, status),
+        success: true,
+    })
+}
+
+/// Execute add_comment action - add a comment to a card
+async fn execute_add_comment(
+    state: &AppState,
+    user_id: Uuid,
+    action: &LlmAction,
+) -> Result<ActionTaken> {
+    let card_title = action.params["card"]
+        .as_str()
+        .or_else(|| action.params["card_title"].as_str())
+        .unwrap_or("");
+
+    let comment_body = action.params["comment"]
+        .as_str()
+        .or_else(|| action.params["body"].as_str())
+        .or_else(|| action.params["text"].as_str())
+        .or_else(|| action.params["content"].as_str())
+        .unwrap_or("");
+
+    if card_title.is_empty() {
+        return Ok(ActionTaken {
+            action: "add_comment".to_string(),
+            description: "Missing card title".to_string(),
+            success: false,
+        });
+    }
+
+    if comment_body.is_empty() {
+        return Ok(ActionTaken {
+            action: "add_comment".to_string(),
+            description: "Missing comment body".to_string(),
+            success: false,
+        });
+    }
+
+    // Find the card (search in user's owned cards first)
+    let cards = state.cards.list_by_owner(user_id).await?;
+    let card = cards
+        .iter()
+        .find(|c| c.title.to_lowercase() == card_title.to_lowercase());
+
+    let card = match card {
+        Some(c) => c,
+        None => {
+            return Ok(ActionTaken {
+                action: "add_comment".to_string(),
+                description: format!("Card '{}' not found", card_title),
+                success: false,
+            });
+        }
+    };
+
+    // Add the comment
+    state
+        .comments
+        .create(card.id, user_id, comment_body)
+        .await?;
+
+    info!(card = %card.title, "Added comment to card");
+
+    Ok(ActionTaken {
+        action: "add_comment".to_string(),
+        description: format!("Added comment to '{}'", card.title),
+        success: true,
+    })
 }

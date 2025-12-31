@@ -6,7 +6,9 @@ use uuid::Uuid;
 
 use crate::auth::AuthUser;
 use crate::error::{AppError, Result};
-use crate::models::{CardFilter, CardResponse, CardVisibility, CreateCard, MoveCard, UpdateCard};
+use crate::models::{
+    CardFilter, CardResponse, CardStatus, CardVisibility, CreateCard, MoveCard, UpdateCard,
+};
 use crate::state::AppState;
 
 pub async fn create_card(
@@ -32,6 +34,7 @@ pub async fn create_card(
     }
 
     let visibility = input.visibility.unwrap_or(CardVisibility::Restricted);
+    let status = input.status.unwrap_or(CardStatus::Open);
 
     let card = state
         .cards
@@ -41,6 +44,7 @@ pub async fn create_card(
             input.body.as_deref(),
             input.position,
             visibility,
+            status,
             input.start_date,
             input.end_date,
             input.due_date,
@@ -137,6 +141,7 @@ pub async fn update_card(
             input.title.as_deref(),
             input.body.as_deref(),
             input.visibility,
+            input.status,
             input.start_date,
             input.end_date,
             input.due_date,

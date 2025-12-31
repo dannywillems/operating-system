@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}{{ card.title }} - Personal OS{% endblock %}
+
+{% block nav %}
+<li class="nav-item"><a class="nav-link" href="/boards">Boards</a></li>
+<li class="nav-item"><a class="nav-link" href="/inbox">Inbox</a></li>
+{% endblock %}
+
+{% block nav_right %}
+<li class="nav-item"><a class="nav-link" href="/settings"><i class="bi bi-gear"></i></a></li>
+<li class="nav-item">
+    <form method="post" action="/logout" class="d-inline">
+        <button type="submit" class="nav-link btn btn-link">Logout ({{ user }})</button>
+    </form>
+</li>
+{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="/inbox" class="text-decoration-none"><i class="bi bi-arrow-left"></i> Back to Inbox</a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Card Header -->
+        <div class="d-flex justify-content-between align-items-start mb-3">
+            <div>
+                <h1 class="mb-2">{{ card.title }}</h1>
+                <code class="text-muted">{{ card.id }}</code>
+            </div>
+            <div class="dropdown">
+                <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                    {% match card.status.as_str() %}
+                    {% when "open" %}
+                    <span class="badge bg-primary">Open</span>
+                    {% when "in_progress" %}
+                    <span class="badge bg-warning text-dark">In Progress</span>
+                    {% when "done" %}
+                    <span class="badge bg-success">Done</span>
+                    {% when "closed" %}
+                    <span class="badge bg-secondary">Closed</span>
+                    {% when _ %}
+                    <span class="badge bg-secondary">{{ card.status }}</span>
+                    {% endmatch %}
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                        <form method="post" action="/inbox/cards/{{ card.id }}/status">
+                            <input type="hidden" name="status" value="open">
+                            <button type="submit" class="dropdown-item">Open</button>
+                        </form>
+                    </li>
+                    <li>
+                        <form method="post" action="/inbox/cards/{{ card.id }}/status">
+                            <input type="hidden" name="status" value="in_progress">
+                            <button type="submit" class="dropdown-item">In Progress</button>
+                        </form>
+                    </li>
+                    <li>
+                        <form method="post" action="/inbox/cards/{{ card.id }}/status">
+                            <input type="hidden" name="status" value="done">
+                            <button type="submit" class="dropdown-item">Done</button>
+                        </form>
+                    </li>
+                    <li>
+                        <form method="post" action="/inbox/cards/{{ card.id }}/status">
+                            <input type="hidden" name="status" value="closed">
+                            <button type="submit" class="dropdown-item">Closed</button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Card Body -->
+        {% if let Some(body) = card.body.as_ref() %}
+        <div class="card mb-4">
+            <div class="card-body">
+                <p class="card-text" style="white-space: pre-wrap;">{{ body }}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Comments Section -->
+        <h4 class="mb-3">
+            <i class="bi bi-chat-dots"></i> Comments
+            <span class="badge bg-secondary">{{ comments.len() }}</span>
+        </h4>
+
+        {% if comments.is_empty() %}
+        <p class="text-muted">No comments yet. Be the first to comment!</p>
+        {% else %}
+        <div class="list-group mb-4">
+            {% for comment in comments %}
+            <div class="list-group-item">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <strong>{{ comment.author_name }}</strong>
+                        <small class="text-muted ms-2">{{ comment.created_at }}</small>
+                        {% if comment.created_at != comment.updated_at %}
+                        <small class="text-muted">(edited)</small>
+                        {% endif %}
+                    </div>
+                    {% if comment.user_id == current_user_id %}
+                    <form method="post" action="/cards/{{ card.id }}/comments/{{ comment.id }}/delete" class="d-inline">
+                        <button type="submit" class="btn btn-link btn-sm text-danger p-0" title="Delete comment">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+                <p class="mb-0" style="white-space: pre-wrap;">{{ comment.body }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Add Comment Form -->
+        <div class="card">
+            <div class="card-header">Add a comment</div>
+            <div class="card-body">
+                <form method="post" action="/cards/{{ card.id }}/comments">
+                    <div class="mb-3">
+                        <textarea class="form-control" name="body" rows="3" placeholder="Write a comment..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Comment</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Sidebar with metadata -->
+        <div class="card">
+            <div class="card-header">Details</div>
+            <ul class="list-group list-group-flush">
+                {% if let Some(due) = card.due_date.as_ref() %}
+                <li class="list-group-item">
+                    <strong>Due Date</strong><br>
+                    {{ due }}
+                </li>
+                {% endif %}
+                <li class="list-group-item">
+                    <strong>Created</strong><br>
+                    {{ card.created_at }}
+                </li>
+                {% if !card.boards.is_empty() %}
+                <li class="list-group-item">
+                    <strong>Boards</strong><br>
+                    {% for board in card.boards %}
+                    <a href="/boards/{{ board.id }}" class="badge bg-info text-decoration-none">{{ board.name }}</a>
+                    {% endfor %}
+                </li>
+                {% endif %}
+                {% if !card.tags.is_empty() %}
+                <li class="list-group-item">
+                    <strong>Tags</strong><br>
+                    {% for tag in card.tags %}
+                    <span class="badge" style="background-color: {{ tag.color }};">{{ tag.name }}</span>
+                    {% endfor %}
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

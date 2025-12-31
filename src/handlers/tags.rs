@@ -59,13 +59,24 @@ pub async fn update_tag(
     // We need the board_id to check permissions, get it from the tag
     let tag = state.tags.get_by_id(tag_id).await?;
 
-    let role = state
-        .boards
-        .get_user_role(tag.board_id, auth.user.id)
-        .await?
-        .ok_or(AppError::Forbidden)?;
+    // Check permissions based on tag scope
+    if let Some(board_id) = tag.board_id {
+        // Board-scoped tag - check board permissions
+        let role = state
+            .boards
+            .get_user_role(board_id, auth.user.id)
+            .await?
+            .ok_or(AppError::Forbidden)?;
 
-    if !role.can_edit() {
+        if !role.can_edit() {
+            return Err(AppError::Forbidden);
+        }
+    } else if let Some(owner_id) = tag.owner_id {
+        // Global tag - only owner can edit
+        if owner_id != auth.user.id {
+            return Err(AppError::Forbidden);
+        }
+    } else {
         return Err(AppError::Forbidden);
     }
 
@@ -84,13 +95,24 @@ pub async fn delete_tag(
 ) -> Result<()> {
     let tag = state.tags.get_by_id(tag_id).await?;
 
-    let role = state
-        .boards
-        .get_user_role(tag.board_id, auth.user.id)
-        .await?
-        .ok_or(AppError::Forbidden)?;
+    // Check permissions based on tag scope
+    if let Some(board_id) = tag.board_id {
+        // Board-scoped tag - check board permissions
+        let role = state
+            .boards
+            .get_user_role(board_id, auth.user.id)
+            .await?
+            .ok_or(AppError::Forbidden)?;
 
-    if !role.can_edit() {
+        if !role.can_edit() {
+            return Err(AppError::Forbidden);
+        }
+    } else if let Some(owner_id) = tag.owner_id {
+        // Global tag - only owner can delete
+        if owner_id != auth.user.id {
+            return Err(AppError::Forbidden);
+        }
+    } else {
         return Err(AppError::Forbidden);
     }
 
@@ -103,24 +125,57 @@ pub async fn add_tag_to_card(
     auth: AuthUser,
     Path((card_id, tag_id)): Path<(Uuid, Uuid)>,
 ) -> Result<()> {
-    let board_id = state.cards.get_board_id_for_card(card_id).await?;
-
-    let role = state
-        .boards
-        .get_user_role(board_id, auth.user.id)
-        .await?
-        .ok_or(AppError::Forbidden)?;
-
-    if !role.can_edit() {
-        return Err(AppError::Forbidden);
-    }
-
-    // Verify tag belongs to the same board
+    // Get the tag first to check its scope
     let tag = state.tags.get_by_id(tag_id).await?;
-    if tag.board_id != board_id {
-        return Err(AppError::BadRequest(
-            "Tag does not belong to this board".to_string(),
-        ));
+
+    // Get the card's board (if any) for permission checking
+    let card_board_id = state.cards.get_board_id_for_card(card_id).await.ok();
+
+    // Check if user can add this tag to this card
+    if let Some(tag_board_id) = tag.board_id {
+        // Board-scoped tag - card must be on the same board
+        if let Some(card_bid) = card_board_id {
+            if tag_board_id != card_bid {
+                return Err(AppError::BadRequest(
+                    "Tag does not belong to this board".to_string(),
+                ));
+            }
+            // Check board permissions
+            let role = state
+                .boards
+                .get_user_role(card_bid, auth.user.id)
+                .await?
+                .ok_or(AppError::Forbidden)?;
+
+            if !role.can_edit() {
+                return Err(AppError::Forbidden);
+            }
+        } else {
+            return Err(AppError::BadRequest(
+                "Cannot add board tag to a standalone card".to_string(),
+            ));
+        }
+    } else if let Some(tag_owner_id) = tag.owner_id {
+        // Global tag - user must own the tag or have edit access to the card's board
+        let can_use_tag = tag_owner_id == auth.user.id;
+        let can_edit_card = if let Some(bid) = card_board_id {
+            state
+                .boards
+                .get_user_role(bid, auth.user.id)
+                .await?
+                .map(|r| r.can_edit())
+                .unwrap_or(false)
+        } else {
+            // Standalone card - check if user owns it
+            let card = state.cards.get_by_id(card_id).await?;
+            card.owner_id == Some(auth.user.id) || card.created_by == auth.user.id
+        };
+
+        if !can_use_tag || !can_edit_card {
+            return Err(AppError::Forbidden);
+        }
+    } else {
+        return Err(AppError::Forbidden);
     }
 
     state.tags.add_to_card(card_id, tag_id).await?;
@@ -132,16 +187,26 @@ pub async fn remove_tag_from_card(
     auth: AuthUser,
     Path((card_id, tag_id)): Path<(Uuid, Uuid)>,
 ) -> Result<()> {
-    let board_id = state.cards.get_board_id_for_card(card_id).await?;
+    // Get the card's board (if any) for permission checking
+    let card_board_id = state.cards.get_board_id_for_card(card_id).await.ok();
 
-    let role = state
-        .boards
-        .get_user_role(board_id, auth.user.id)
-        .await?
-        .ok_or(AppError::Forbidden)?;
+    // Check if user can edit this card
+    if let Some(board_id) = card_board_id {
+        let role = state
+            .boards
+            .get_user_role(board_id, auth.user.id)
+            .await?
+            .ok_or(AppError::Forbidden)?;
 
-    if !role.can_edit() {
-        return Err(AppError::Forbidden);
+        if !role.can_edit() {
+            return Err(AppError::Forbidden);
+        }
+    } else {
+        // Standalone card - check if user owns it
+        let card = state.cards.get_by_id(card_id).await?;
+        if card.owner_id != Some(auth.user.id) && card.created_by != auth.user.id {
+            return Err(AppError::Forbidden);
+        }
     }
 
     state.tags.remove_from_card(card_id, tag_id).await?;

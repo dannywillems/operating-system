@@ -15,13 +15,14 @@ impl TagRepository {
         Self { pool }
     }
 
+    /// Create a board-scoped tag
     pub async fn create(&self, board_id: Uuid, name: &str, color: &str) -> Result<Tag> {
         let id = Uuid::new_v4();
 
         let tag = sqlx::query_as::<_, Tag>(
             r#"
-            INSERT INTO tags (id, board_id, name, color, created_at)
-            VALUES ($1, $2, $3, $4, datetime('now'))
+            INSERT INTO tags (id, board_id, owner_id, name, color, created_at)
+            VALUES ($1, $2, NULL, $3, $4, datetime('now'))
             RETURNING *
             "#,
         )
@@ -33,6 +34,39 @@ impl TagRepository {
         .await?;
 
         Ok(tag)
+    }
+
+    /// Create a global (user-scoped) tag
+    pub async fn create_global(&self, owner_id: Uuid, name: &str, color: &str) -> Result<Tag> {
+        let id = Uuid::new_v4();
+
+        let tag = sqlx::query_as::<_, Tag>(
+            r#"
+            INSERT INTO tags (id, board_id, owner_id, name, color, created_at)
+            VALUES ($1, NULL, $2, $3, $4, datetime('now'))
+            RETURNING *
+            "#,
+        )
+        .bind(id)
+        .bind(owner_id)
+        .bind(name)
+        .bind(color)
+        .fetch_one(self.pool.as_ref())
+        .await?;
+
+        Ok(tag)
+    }
+
+    /// List global tags owned by a user
+    pub async fn list_by_owner(&self, owner_id: Uuid) -> Result<Vec<Tag>> {
+        let tags = sqlx::query_as::<_, Tag>(
+            "SELECT * FROM tags WHERE owner_id = $1 AND board_id IS NULL ORDER BY name ASC",
+        )
+        .bind(owner_id)
+        .fetch_all(self.pool.as_ref())
+        .await?;
+
+        Ok(tags)
     }
 
     pub async fn find_by_id(&self, id: Uuid) -> Result<Option<Tag>> {

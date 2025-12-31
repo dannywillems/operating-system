@@ -2,9 +2,9 @@ use sqlx::SqlitePool;
 use std::sync::Arc;
 
 use crate::repo::{
-    board::BoardRepository, card::CardRepository, chat_message::ChatMessageRepository,
-    column::ColumnRepository, session::SessionRepository, tag::TagRepository,
-    token::ApiTokenRepository, user::UserRepository,
+    board::BoardRepository, card::CardRepository, card_board::CardBoardRepository,
+    chat_message::ChatMessageRepository, column::ColumnRepository, comment::CommentRepository,
+    session::SessionRepository, tag::TagRepository, token::ApiTokenRepository, user::UserRepository,
 };
 use crate::services::{OllamaClient, WebSearchClient};
 
@@ -16,7 +16,9 @@ pub struct AppState {
     pub boards: BoardRepository,
     pub columns: ColumnRepository,
     pub cards: CardRepository,
+    pub card_boards: CardBoardRepository,
     pub tags: TagRepository,
+    pub comments: CommentRepository,
     pub chat_messages: ChatMessageRepository,
     pub ollama: OllamaClient,
     pub web_search: WebSearchClient,
@@ -33,7 +35,9 @@ impl AppState {
             boards: BoardRepository::new(pool.clone()),
             columns: ColumnRepository::new(pool.clone()),
             cards: CardRepository::new(pool.clone()),
+            card_boards: CardBoardRepository::new(pool.clone()),
             tags: TagRepository::new(pool.clone()),
+            comments: CommentRepository::new(pool.clone()),
             chat_messages: ChatMessageRepository::new(pool.clone()),
             ollama: OllamaClient::from_env(),
             web_search: WebSearchClient::new(),

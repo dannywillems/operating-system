@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Inbox - Personal OS{% endblock %}
+
+{% block nav %}
+<li class="nav-item"><a class="nav-link" href="/boards">Boards</a></li>
+<li class="nav-item"><a class="nav-link active" href="/inbox">Inbox</a></li>
+{% endblock %}
+
+{% block nav_right %}
+<li class="nav-item"><a class="nav-link" href="/settings"><i class="bi bi-gear"></i></a></li>
+<li class="nav-item">
+    <form method="post" action="/logout" class="d-inline">
+        <button type="submit" class="nav-link btn btn-link">Logout ({{ user }})</button>
+    </form>
+</li>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Inbox</h1>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createCardModal">
+        <i class="bi bi-plus-lg"></i> New Card
+    </button>
+</div>
+
+<!-- Status filter tabs -->
+<ul class="nav nav-pills mb-4">
+    <li class="nav-item">
+        <a class="nav-link{% if current_status.is_none() %} active{% endif %}" href="/inbox">All</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link{% if current_status == Some("open".to_string()) %} active{% endif %}" href="/inbox?status=open">Open</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link{% if current_status == Some("in_progress".to_string()) %} active{% endif %}" href="/inbox?status=in_progress">In Progress</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link{% if current_status == Some("done".to_string()) %} active{% endif %}" href="/inbox?status=done">Done</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link{% if current_status == Some("closed".to_string()) %} active{% endif %}" href="/inbox?status=closed">Closed</a>
+    </li>
+</ul>
+
+{% if cards.is_empty() %}
+<div class="text-center py-5">
+    <p class="text-muted">No cards found.</p>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createCardModal">
+        Create your first card
+    </button>
+</div>
+{% else %}
+<div class="list-group">
+    {% for card in cards %}
+    <a href="/cards/{{ card.id }}" class="list-group-item list-group-item-action">
+        <div class="d-flex w-100 justify-content-between align-items-start">
+            <div class="flex-grow-1">
+                <h5 class="mb-1">{{ card.title }}</h5>
+                <code class="small text-muted">{{ card.id }}</code>
+                {% if let Some(body) = card.body.as_ref() %}
+                <p class="mb-1 text-muted small">{{ body|truncate(100) }}</p>
+                {% endif %}
+                <div class="mt-2">
+                    <!-- Status badge -->
+                    {% match card.status.as_str() %}
+                    {% when "open" %}
+                    <span class="badge bg-primary">Open</span>
+                    {% when "in_progress" %}
+                    <span class="badge bg-warning text-dark">In Progress</span>
+                    {% when "done" %}
+                    <span class="badge bg-success">Done</span>
+                    {% when "closed" %}
+                    <span class="badge bg-secondary">Closed</span>
+                    {% when _ %}
+                    <span class="badge bg-secondary">{{ card.status }}</span>
+                    {% endmatch %}
+                    <!-- Due date -->
+                    {% if let Some(due) = card.due_date %}
+                    <span class="badge bg-outline-secondary ms-1">Due: {{ due }}</span>
+                    {% endif %}
+                    <!-- Board assignments -->
+                    {% for board in card.boards %}
+                    <span class="badge bg-info ms-1">{{ board.name }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="btn-group">
+                <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+                    Status
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                        <form method="post" action="/inbox/cards/{{ card.id }}/status">
+                            <input type="hidden" name="status" value="open">
+                            <button type="submit" class="dropdown-item">Open</button>
+                        </form>
+                    </li>
+                    <li>
+                        <form method="post" action="/inbox/cards/{{ card.id }}/status">
+                            <input type="hidden" name="status" value="in_progress">
+                            <button type="submit" class="dropdown-item">In Progress</button>
+                        </form>
+                    </li>
+                    <li>
+                        <form method="post" action="/inbox/cards/{{ card.id }}/status">
+                            <input type="hidden" name="status" value="done">
+                            <button type="submit" class="dropdown-item">Done</button>
+                        </form>
+                    </li>
+                    <li>
+                        <form method="post" action="/inbox/cards/{{ card.id }}/status">
+                            <input type="hidden" name="status" value="closed">
+                            <button type="submit" class="dropdown-item">Closed</button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Create Card Modal -->
+<div class="modal fade" id="createCardModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="/inbox/cards/new">
+                <div class="modal-header">
+                    <h5 class="modal-title">New Card</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Title</label>
+                        <input type="text" class="form-control" id="title" name="title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="body" class="form-label">Description</label>
+                        <textarea class="form-control" id="body" name="body" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="due_date" class="form-label">Due Date</label>
+                        <input type="date" class="form-control" id="due_date" name="due_date">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

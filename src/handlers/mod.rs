@@ -3,5 +3,7 @@ pub mod boards;
 pub mod cards;
 pub mod chat;
 pub mod columns;
+pub mod comments;
+pub mod inbox;
 pub mod tags;
 pub mod web;

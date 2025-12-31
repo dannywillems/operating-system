@@ -11,10 +11,14 @@ pub enum ChatAction {
     DeleteBoard,
     CreateColumn,
     CreateCard,
+    CreateInboxCard,
     MoveCard,
     MoveCardCrossBoard,
+    AssignCard,
+    UpdateStatus,
     CreateTag,
     AddTag,
+    AddComment,
     ListCards,
     ListTags,
     DeleteColumn,
@@ -42,7 +46,11 @@ impl ChatAction {
         !matches!(
             self,
             ChatAction::CreateBoard
+                | ChatAction::CreateInboxCard
                 | ChatAction::MoveCardCrossBoard
+                | ChatAction::AssignCard
+                | ChatAction::UpdateStatus
+                | ChatAction::AddComment
                 | ChatAction::WebSearch
                 | ChatAction::NoAction
                 | ChatAction::ListCards
@@ -61,10 +69,14 @@ impl FromStr for ChatAction {
             "deleteboard" => Ok(ChatAction::DeleteBoard),
             "createcolumn" => Ok(ChatAction::CreateColumn),
             "createcard" => Ok(ChatAction::CreateCard),
+            "createinboxcard" | "inboxcard" => Ok(ChatAction::CreateInboxCard),
             "movecard" => Ok(ChatAction::MoveCard),
             "movecardcrossboard" => Ok(ChatAction::MoveCardCrossBoard),
+            "assigncard" | "assigntoboard" => Ok(ChatAction::AssignCard),
+            "updatestatus" | "setstatus" | "changestatus" => Ok(ChatAction::UpdateStatus),
             "createtag" => Ok(ChatAction::CreateTag),
             "addtag" => Ok(ChatAction::AddTag),
+            "addcomment" | "comment" => Ok(ChatAction::AddComment),
             "listcards" => Ok(ChatAction::ListCards),
             "listtags" => Ok(ChatAction::ListTags),
             "deletecolumn" => Ok(ChatAction::DeleteColumn),
@@ -84,10 +96,14 @@ impl fmt::Display for ChatAction {
             ChatAction::DeleteBoard => write!(f, "delete_board"),
             ChatAction::CreateColumn => write!(f, "create_column"),
             ChatAction::CreateCard => write!(f, "create_card"),
+            ChatAction::CreateInboxCard => write!(f, "create_inbox_card"),
             ChatAction::MoveCard => write!(f, "move_card"),
             ChatAction::MoveCardCrossBoard => write!(f, "move_card_cross_board"),
+            ChatAction::AssignCard => write!(f, "assign_card"),
+            ChatAction::UpdateStatus => write!(f, "update_status"),
             ChatAction::CreateTag => write!(f, "create_tag"),
             ChatAction::AddTag => write!(f, "add_tag"),
+            ChatAction::AddComment => write!(f, "add_comment"),
             ChatAction::ListCards => write!(f, "list_cards"),
             ChatAction::ListTags => write!(f, "list_tags"),
             ChatAction::DeleteColumn => write!(f, "delete_column"),

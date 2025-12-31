@@ -4,7 +4,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::error::{AppError, Result};
-use crate::models::{Card, CardFilter, CardVisibility};
+use crate::models::{Card, CardFilter, CardStatus, CardVisibility};
 
 #[derive(Clone)]
 pub struct CardRepository {
@@ -24,6 +24,7 @@ impl CardRepository {
         body: Option<&str>,
         position: Option<i32>,
         visibility: CardVisibility,
+        status: CardStatus,
         start_date: Option<NaiveDate>,
         end_date: Option<NaiveDate>,
         due_date: Option<NaiveDate>,
@@ -46,8 +47,8 @@ impl CardRepository {
 
         let card = sqlx::query_as::<_, Card>(
             r#"
-            INSERT INTO cards (id, column_id, title, body, position, visibility, start_date, end_date, due_date, created_by, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, datetime('now'), datetime('now'))
+            INSERT INTO cards (id, column_id, title, body, position, visibility, status, start_date, end_date, due_date, owner_id, created_by, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11, datetime('now'), datetime('now'))
             RETURNING *
             "#,
         )
@@ -57,10 +58,98 @@ impl CardRepository {
         .bind(body)
         .bind(pos)
         .bind(visibility.to_string())
+        .bind(status.to_string())
         .bind(start_date)
         .bind(end_date)
         .bind(due_date)
         .bind(created_by)
+        .fetch_one(self.pool.as_ref())
+        .await?;
+
+        Ok(card)
+    }
+
+    /// Create a standalone card (not assigned to any column)
+    #[allow(clippy::too_many_arguments)]
+    pub async fn create_standalone(
+        &self,
+        title: &str,
+        body: Option<&str>,
+        visibility: CardVisibility,
+        status: CardStatus,
+        start_date: Option<NaiveDate>,
+        end_date: Option<NaiveDate>,
+        due_date: Option<NaiveDate>,
+        owner_id: Uuid,
+    ) -> Result<Card> {
+        let id = Uuid::new_v4();
+
+        let card = sqlx::query_as::<_, Card>(
+            r#"
+            INSERT INTO cards (id, column_id, title, body, position, visibility, status, start_date, end_date, due_date, owner_id, created_by, created_at, updated_at)
+            VALUES ($1, NULL, $2, $3, 0, $4, $5, $6, $7, $8, $9, $9, datetime('now'), datetime('now'))
+            RETURNING *
+            "#,
+        )
+        .bind(id)
+        .bind(title)
+        .bind(body)
+        .bind(visibility.to_string())
+        .bind(status.to_string())
+        .bind(start_date)
+        .bind(end_date)
+        .bind(due_date)
+        .bind(owner_id)
+        .fetch_one(self.pool.as_ref())
+        .await?;
+
+        Ok(card)
+    }
+
+    /// List all cards owned by a user (standalone cards)
+    pub async fn list_by_owner(&self, owner_id: Uuid) -> Result<Vec<Card>> {
+        let cards = sqlx::query_as::<_, Card>(
+            "SELECT * FROM cards WHERE owner_id = $1 ORDER BY updated_at DESC",
+        )
+        .bind(owner_id)
+        .fetch_all(self.pool.as_ref())
+        .await?;
+
+        Ok(cards)
+    }
+
+    /// List cards by owner with optional status filter
+    pub async fn list_by_owner_with_status(
+        &self,
+        owner_id: Uuid,
+        status: Option<CardStatus>,
+    ) -> Result<Vec<Card>> {
+        if let Some(s) = status {
+            let cards = sqlx::query_as::<_, Card>(
+                "SELECT * FROM cards WHERE owner_id = $1 AND status = $2 ORDER BY updated_at DESC",
+            )
+            .bind(owner_id)
+            .bind(s.to_string())
+            .fetch_all(self.pool.as_ref())
+            .await?;
+            Ok(cards)
+        } else {
+            self.list_by_owner(owner_id).await
+        }
+    }
+
+    /// Update card status
+    pub async fn update_status(&self, id: Uuid, status: CardStatus) -> Result<Card> {
+        let card = sqlx::query_as::<_, Card>(
+            r#"
+            UPDATE cards
+            SET status = $2, updated_at = datetime('now')
+            WHERE id = $1
+            RETURNING *
+            "#,
+        )
+        .bind(id)
+        .bind(status.to_string())
         .fetch_one(self.pool.as_ref())
         .await?;
 
@@ -186,6 +275,7 @@ impl CardRepository {
         title: Option<&str>,
         body: Option<&str>,
         visibility: Option<CardVisibility>,
+        status: Option<CardStatus>,
         start_date: Option<NaiveDate>,
         end_date: Option<NaiveDate>,
         due_date: Option<NaiveDate>,
@@ -196,9 +286,10 @@ impl CardRepository {
             SET title = COALESCE($2, title),
                 body = COALESCE($3, body),
                 visibility = COALESCE($4, visibility),
-                start_date = COALESCE($5, start_date),
-                end_date = COALESCE($6, end_date),
-                due_date = COALESCE($7, due_date),
+                status = COALESCE($5, status),
+                start_date = COALESCE($6, start_date),
+                end_date = COALESCE($7, end_date),
+                due_date = COALESCE($8, due_date),
                 updated_at = datetime('now')
             WHERE id = $1
             RETURNING *
@@ -208,6 +299,7 @@ impl CardRepository {
         .bind(title)
         .bind(body)
         .bind(visibility.map(|v| v.to_string()))
+        .bind(status.map(|s| s.to_string()))
         .bind(start_date)
         .bind(end_date)
         .bind(due_date)
@@ -239,7 +331,7 @@ impl CardRepository {
         let card = self.get_by_id(id).await?;
 
         // If moving within the same column
-        if card.column_id == new_column_id {
+        if card.column_id == Some(new_column_id) {
             if new_position > card.position {
                 sqlx::query(
                     r#"
@@ -268,19 +360,21 @@ impl CardRepository {
                 .await?;
             }
         } else {
-            // Moving to a different column
-            // Decrease positions in old column
-            sqlx::query(
-                r#"
-                UPDATE cards
-                SET position = position - 1
-                WHERE column_id = $1 AND position > $2
-                "#,
-            )
-            .bind(card.column_id)
-            .bind(card.position)
-            .execute(self.pool.as_ref())
-            .await?;
+            // Moving to a different column (or from no column)
+            // Decrease positions in old column if card had one
+            if let Some(old_column_id) = card.column_id {
+                sqlx::query(
+                    r#"
+                    UPDATE cards
+                    SET position = position - 1
+                    WHERE column_id = $1 AND position > $2
+                    "#,
+                )
+                .bind(old_column_id)
+                .bind(card.position)
+                .execute(self.pool.as_ref())
+                .await?;
+            }
 
             // Increase positions in new column
             sqlx::query(
